@@ -8,8 +8,8 @@ import { Divider } from '@/components/ui/divider';
 import { EmptyState } from '@/components/ui/empty-state';
 import { IconButton } from '@/components/ui/icon-button';
 import { Screen } from '@/components/ui/screen';
+import { SectionLabel } from '@/components/ui/section-header';
 import { ScreenHeader } from '@/components/ui/screen-header';
-import { Text } from '@/components/ui/text';
 import { TextField } from '@/components/ui/text-field';
 import { Spacing } from '@/constants/theme';
 import { LinkRow } from '@/features/links/components/link-row';
@@ -73,9 +73,7 @@ export default function LinksScreen() {
           <View style={styles.groups}>
             {groups.map((group) => (
               <View key={group.category} style={styles.group}>
-                <Text variant="overline" color="textSecondary">
-                  {group.category.toUpperCase()}
-                </Text>
+                <SectionLabel label={group.category} meta={String(group.links.length)} />
 
                 <Card style={styles.card}>
                   {group.links.map((link, index) => (

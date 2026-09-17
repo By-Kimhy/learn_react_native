@@ -78,11 +78,15 @@ export interface Label {
 export type AppearancePreference = 'light' | 'dark' | 'system';
 export type LanguageCode = 'en' | 'km';
 
+/** Clock style. Not derived from the locale — people disagree with their locale. */
+export type TimeFormat = '12h' | '24h';
+
 export interface UserPreferences {
   displayCurrency: Currency;
   exchangeRate: number;
   appearance: AppearancePreference;
   language: LanguageCode;
+  timeFormat: TimeFormat;
   notificationsEnabled: boolean;
 }
 

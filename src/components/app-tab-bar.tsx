@@ -1,10 +1,11 @@
 import type { BottomTabBarProps } from 'expo-router/js-tabs';
 import { Platform, StyleSheet, View } from 'react-native';
 
+import { GlassSurface } from '@/components/ui/glass-surface';
 import { Icon, type IconName } from '@/components/ui/icon';
 import { PressableScale } from '@/components/ui/pressable-scale';
 import { Text } from '@/components/ui/text';
-import { MaxContentWidth, Radius, Spacing } from '@/constants/theme';
+import { MaxContentWidth, Radius, ShadowColor, Spacing, TabBarHeight } from '@/constants/theme';
 import { useT } from '@/features/settings/store';
 import { useColorScheme, useTheme } from '@/hooks/use-theme';
 import type { TranslationKey } from '@/lib/i18n';
@@ -17,19 +18,28 @@ interface TabMeta {
 
 /** Route name → presentation. Keyed by file name under `app/(tabs)`. */
 const TABS: Record<string, TabMeta> = {
-  index: { labelKey: 'tabs.home', icon: 'home-outline', activeIcon: 'home' },
+  index: { labelKey: 'tabs.home', icon: 'grid-outline', activeIcon: 'grid' },
   notes: { labelKey: 'tabs.notes', icon: 'document-text-outline', activeIcon: 'document-text' },
   money: { labelKey: 'tabs.money', icon: 'wallet-outline', activeIcon: 'wallet' },
-  more: { labelKey: 'tabs.more', icon: 'apps-outline', activeIcon: 'apps' },
+  more: { labelKey: 'tabs.more', icon: 'ellipsis-horizontal', activeIcon: 'ellipsis-horizontal' },
 };
+
+/** Width of the gap left in the pill for the raised "+". */
+const CREATE_SLOT = 76;
+const CREATE_SIZE = 56;
+/** How far the "+" is lifted above the pill's vertical centre. */
+const CREATE_LIFT = 14;
 
 export interface AppTabBarProps extends BottomTabBarProps {
   onCreatePress: () => void;
 }
 
 /**
- * A custom tab bar so the "+" can sit in the middle as a raised button — the
- * app's primary action, reachable with a thumb from any screen.
+ * A floating glass pill rather than a bar attached to the screen edge: the
+ * scene runs full height beneath it, so there is content for the material to
+ * refract. The "+" sits in a gap in the pill and is lifted clear of it, which
+ * is why it is a sibling of the pill rather than a child — a rounded, clipped
+ * pill can't let a child overhang its own edge.
  */
 export function AppTabBar({ state, navigation, insets, onCreatePress }: AppTabBarProps) {
   const theme = useTheme();
@@ -38,6 +48,7 @@ export function AppTabBar({ state, navigation, insets, onCreatePress }: AppTabBa
 
   const routes = state.routes.filter((route) => route.name in TABS);
   const half = Math.ceil(routes.length / 2);
+  const bottomInset = Math.max(insets.bottom, Spacing.md);
 
   const renderTab = (route: (typeof routes)[number]) => {
     const meta = TABS[route.name];
@@ -60,14 +71,14 @@ export function AppTabBar({ state, navigation, insets, onCreatePress }: AppTabBa
         style={styles.tab}>
         <Icon
           name={focused ? meta.activeIcon : meta.icon}
-          size={23}
+          size={22}
           tint={focused ? theme.primary : theme.textTertiary}
         />
         <Text
           variant="caption"
           tint={focused ? theme.primary : theme.textTertiary}
           numberOfLines={1}
-          style={styles.label}>
+          style={[styles.label, focused && styles.labelActive]}>
           {t(meta.labelKey)}
         </Text>
       </PressableScale>
@@ -75,34 +86,33 @@ export function AppTabBar({ state, navigation, insets, onCreatePress }: AppTabBa
   };
 
   return (
-    <View
-      style={[
-        styles.container,
-        {
-          backgroundColor: theme.surface,
-          borderTopColor: theme.border,
-          paddingBottom: Math.max(insets.bottom, Spacing.sm),
-        },
-      ]}>
-      <View style={styles.row}>
-        {routes.slice(0, half).map(renderTab)}
+    <View style={[styles.container, { paddingBottom: bottomInset }]}>
+      <View style={styles.stack}>
+        <GlassSurface
+          effect="regular"
+          interactive
+          radius={Radius.pill}
+          style={[styles.pill, scheme === 'light' && styles.pillShadowLight]}>
+          {routes.slice(0, half).map(renderTab)}
+          <View style={styles.createSlot} />
+          {routes.slice(half).map(renderTab)}
+        </GlassSurface>
 
-        <View style={styles.centerSlot}>
-          <PressableScale
-            accessibilityRole="button"
-            accessibilityLabel={t('tabs.create')}
-            onPress={onCreatePress}
-            scaleTo={0.9}
-            style={[
-              styles.createButton,
-              { backgroundColor: theme.primary, shadowColor: theme.primary },
-              scheme === 'dark' && styles.createButtonDark,
-            ]}>
-            <Icon name="add" size={30} tint={theme.onPrimary} />
-          </PressableScale>
-        </View>
-
-        {routes.slice(half).map(renderTab)}
+        <PressableScale
+          accessibilityRole="button"
+          accessibilityLabel={t('tabs.create')}
+          onPress={onCreatePress}
+          scaleTo={0.9}
+          style={[
+            styles.createButton,
+            {
+              backgroundColor: theme.primary,
+              borderColor: theme.background,
+              shadowColor: theme.primary,
+            },
+          ]}>
+          <Icon name="add" size={28} tint={theme.onPrimary} />
+        </PressableScale>
       </View>
     </View>
   );
@@ -110,40 +120,65 @@ export function AppTabBar({ state, navigation, insets, onCreatePress }: AppTabBa
 
 const styles = StyleSheet.create({
   container: {
-    borderTopWidth: StyleSheet.hairlineWidth,
-    paddingTop: Spacing.sm,
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingHorizontal: Spacing.lg,
+    // The bar floats over the scene, so only its own children take touches.
+    pointerEvents: 'box-none',
   },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
+  stack: {
     width: '100%',
     maxWidth: MaxContentWidth,
     alignSelf: 'center',
+    justifyContent: 'flex-end',
+    pointerEvents: 'box-none',
+  },
+  pill: {
+    height: TabBarHeight,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.xs,
+    overflow: 'hidden',
+  },
+  pillShadowLight: {
+    ...Platform.select({
+      ios: {
+        shadowColor: ShadowColor,
+        shadowOpacity: 0.1,
+        shadowRadius: 18,
+        shadowOffset: { width: 0, height: 8 },
+      },
+      android: { elevation: 8 },
+      default: {},
+    }),
   },
   tab: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 3,
-    minHeight: 46,
-    paddingHorizontal: Spacing.xs,
+    minHeight: 48,
+    paddingHorizontal: 2,
   },
   label: { fontSize: 11 },
-  // Reserves a column so the raised button doesn't crowd the neighbouring tabs.
-  centerSlot: { width: 72, alignItems: 'center' },
+  labelActive: { fontWeight: '600' },
+  createSlot: { width: CREATE_SLOT, pointerEvents: 'none' },
   createButton: {
-    width: 56,
-    height: 56,
+    position: 'absolute',
+    alignSelf: 'center',
+    bottom: (TabBarHeight - CREATE_SIZE) / 2 + CREATE_LIFT,
+    width: CREATE_SIZE,
+    height: CREATE_SIZE,
     borderRadius: Radius.pill,
+    borderWidth: 4,
     alignItems: 'center',
     justifyContent: 'center',
-    // Lifts the button above the bar without changing the bar's own height.
-    marginTop: -22,
     ...Platform.select({
-      ios: { shadowOpacity: 0.35, shadowRadius: 10, shadowOffset: { width: 0, height: 5 } },
-      android: { elevation: 6 },
+      ios: { shadowOpacity: 0.4, shadowRadius: 12, shadowOffset: { width: 0, height: 6 } },
+      android: { elevation: 10 },
       default: {},
     }),
   },
-  createButtonDark: { shadowOpacity: 0.5 },
 });

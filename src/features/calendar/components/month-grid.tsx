@@ -34,7 +34,7 @@ export function MonthGrid({ cells, selected, onSelect }: MonthGridProps) {
       <View style={styles.row}>
         {headings.map((heading, index) => (
           <View key={index} style={styles.cell}>
-            <Text variant="caption" color="textTertiary" align="center">
+            <Text variant="captionStrong" color="textTertiary" align="center">
               {heading}
             </Text>
           </View>
@@ -54,22 +54,24 @@ export function MonthGrid({ cells, selected, onSelect }: MonthGridProps) {
               onPress={() => onSelect(cell.date)}
               scaleTo={0.88}
               style={styles.cell}>
+              {/* Today is a solid disc and the selection a soft one, so the two
+                  stay distinguishable on the day that is both. */}
               <View
                 style={[
                   styles.day,
-                  isSelected && { backgroundColor: theme.primary },
-                  !isSelected && cell.isToday && { borderWidth: 1.5, borderColor: theme.primary },
+                  cell.isToday && { backgroundColor: theme.primary },
+                  !cell.isToday && isSelected && { backgroundColor: theme.primarySoft },
                 ]}>
                 <Text
-                  variant="caption"
+                  variant="captionStrong"
                   tint={
-                    isSelected
+                    cell.isToday
                       ? theme.onPrimary
-                      : cell.inMonth
-                        ? cell.isToday
-                          ? theme.primary
-                          : theme.text
-                        : theme.textTertiary
+                      : isSelected
+                        ? theme.primary
+                        : cell.inMonth
+                          ? theme.text
+                          : theme.textTertiary
                   }>
                   {cell.day}
                 </Text>
@@ -79,11 +81,8 @@ export function MonthGrid({ cells, selected, onSelect }: MonthGridProps) {
                 style={[
                   styles.dot,
                   {
-                    backgroundColor: cell.hasEvents
-                      ? isSelected
-                        ? theme.primary
-                        : theme.textSecondary
-                      : 'transparent',
+                    backgroundColor: cell.hasEvents ? theme.primary : 'transparent',
+                    opacity: cell.inMonth ? 1 : 0.4,
                   },
                 ]}
               />
@@ -102,8 +101,8 @@ const styles = StyleSheet.create({
   // Seven columns: a fraction rather than flex, so rows wrap at exactly 7.
   cell: { width: `${100 / 7}%`, alignItems: 'center', gap: 2, paddingVertical: 3 },
   day: {
-    width: 34,
-    height: 34,
+    width: 36,
+    height: 36,
     borderRadius: Radius.pill,
     alignItems: 'center',
     justifyContent: 'center',

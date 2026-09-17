@@ -6,14 +6,15 @@ import { BottomSheet } from '@/components/ui/bottom-sheet';
 import { Button } from '@/components/ui/button';
 import { Divider } from '@/components/ui/divider';
 import { EmptyState } from '@/components/ui/empty-state';
-import { Icon } from '@/components/ui/icon';
+import { Icon, type IconName } from '@/components/ui/icon';
+import { IconTile } from '@/components/ui/icon-tile';
 import { ListRow } from '@/components/ui/list-row';
 import { Text } from '@/components/ui/text';
-import { Radius, Spacing } from '@/constants/theme';
+import { Radius, Spacing, type AccentName } from '@/constants/theme';
 import { useEvents } from '@/features/calendar/store';
 import { usePreferences, useT } from '@/features/settings/store';
 import { useTasks } from '@/features/tasks/store';
-import { useTheme } from '@/hooks/use-theme';
+import { useAccents, useTheme } from '@/hooks/use-theme';
 import { formatMediumDate, fromISODate } from '@/lib/date';
 import type { TranslationKey } from '@/lib/i18n';
 import type { ISODate, Priority } from '@/types';
@@ -41,6 +42,30 @@ export interface AISheetProps {
 }
 
 type Status = 'idle' | 'loading' | 'done' | 'error';
+
+function BlockHeading({
+  label,
+  icon,
+  tone,
+  right,
+}: {
+  label: string;
+  icon: IconName;
+  tone: AccentName;
+  right?: React.ReactNode;
+}) {
+  const accents = useAccents();
+
+  return (
+    <View style={styles.blockHeader}>
+      <IconTile icon={icon} tone={tone} size={26} shape="circle" />
+      <Text variant="captionStrong" tint={accents[tone].tint} style={styles.blockLabel} numberOfLines={1}>
+        {label}
+      </Text>
+      {right}
+    </View>
+  );
+}
 
 export function AISheet({ visible, onClose, title, body, onApplyTitle }: AISheetProps) {
   const theme = useTheme();
@@ -138,7 +163,7 @@ export function AISheet({ visible, onClose, title, body, onApplyTitle }: AISheet
             <Text variant="body" color="textSecondary">
               {t('ai.costNote')}
             </Text>
-            <Button label={t('ai.analyse')} icon="sparkles" onPress={run} fullWidth />
+            <Button label={t('ai.analyse')} icon="sparkles" onPress={run} fullWidth shape="pill" />
           </View>
         ) : status === 'loading' ? (
           <View style={styles.loading}>
@@ -155,15 +180,13 @@ export function AISheet({ visible, onClose, title, body, onApplyTitle }: AISheet
               body={errorKind === 'offline' ? t('ai.offlineBody') : undefined}
               compact
             />
-            <Button label={t('ai.retry')} icon="refresh" variant="secondary" onPress={run} fullWidth />
+            <Button label={t('ai.retry')} icon="refresh" variant="secondary" onPress={run} fullWidth shape="pill" />
           </View>
         ) : analysis ? (
           <View style={styles.results}>
             {analysis.summary.trim() ? (
               <View style={styles.block}>
-                <Text variant="overline" color="textSecondary">
-                  {t('ai.summary').toUpperCase()}
-                </Text>
+                <BlockHeading label={t('ai.summary')} icon="sparkles" tone="purple" />
                 <View style={[styles.summaryBox, { backgroundColor: theme.surfaceAlt }]}>
                   <Text variant="body">{analysis.summary}</Text>
                 </View>
@@ -172,12 +195,12 @@ export function AISheet({ visible, onClose, title, body, onApplyTitle }: AISheet
 
             {analysis.title.trim() ? (
               <View style={styles.block}>
-                <Text variant="overline" color="textSecondary">
-                  {t('ai.suggestedTitle').toUpperCase()}
-                </Text>
+                <BlockHeading label={t('ai.suggestedTitle')} icon="text" tone="blue" />
                 <ListRow
                   title={analysis.title}
                   icon="text-outline"
+                  tone="blue"
+                  iconShape="circle"
                   right={
                     applied.has('title') ? (
                       <Icon name="checkmark-circle" size={20} color="income" />
@@ -185,6 +208,7 @@ export function AISheet({ visible, onClose, title, body, onApplyTitle }: AISheet
                       <Button
                         label={t('ai.useTitle')}
                         variant="secondary"
+                        shape="pill"
                         onPress={() => {
                           onApplyTitle(analysis.title);
                           markApplied('title');
@@ -198,16 +222,12 @@ export function AISheet({ visible, onClose, title, body, onApplyTitle }: AISheet
 
             {analysis.tasks.length > 0 ? (
               <View style={styles.block}>
-                <View style={styles.blockHeader}>
-                  <Text variant="overline" color="textSecondary">
-                    {t('ai.tasksFound').toUpperCase()}
-                  </Text>
-                  <Button
-                    label={t('ai.addAllTasks')}
-                    variant="ghost"
-                    onPress={addAllTasks}
-                  />
-                </View>
+                <BlockHeading
+                  label={t('ai.tasksFound')}
+                  icon="checkbox"
+                  tone="green"
+                  right={<Button label={t('ai.addAllTasks')} variant="ghost" onPress={addAllTasks} />}
+                />
 
                 {analysis.tasks.map((task, index) => {
                   const key = `task-${index}`;
@@ -224,6 +244,8 @@ export function AISheet({ visible, onClose, title, body, onApplyTitle }: AISheet
                             : undefined
                         }
                         icon="checkbox-outline"
+                        tone="green"
+                        iconShape="circle"
                         right={
                           done ? (
                             <Icon name="checkmark-circle" size={20} color="income" />
@@ -231,6 +253,7 @@ export function AISheet({ visible, onClose, title, body, onApplyTitle }: AISheet
                             <Button
                               label={t('ai.addTask')}
                               variant="secondary"
+                              shape="pill"
                               onPress={() => addOneTask(task, key)}
                             />
                           )
@@ -244,9 +267,7 @@ export function AISheet({ visible, onClose, title, body, onApplyTitle }: AISheet
 
             {analysis.events.length > 0 ? (
               <View style={styles.block}>
-                <Text variant="overline" color="textSecondary">
-                  {t('ai.eventsFound').toUpperCase()}
-                </Text>
+                <BlockHeading label={t('ai.eventsFound')} icon="calendar" tone="indigo" />
 
                 {analysis.events.map((event, index) => {
                   const key = `event-${index}`;
@@ -264,6 +285,8 @@ export function AISheet({ visible, onClose, title, body, onApplyTitle }: AISheet
                           .filter(Boolean)
                           .join(' · ')}
                         icon="calendar-outline"
+                        tone="indigo"
+                        iconShape="circle"
                         right={
                           done ? (
                             <Icon name="checkmark-circle" size={20} color="income" />
@@ -271,6 +294,7 @@ export function AISheet({ visible, onClose, title, body, onApplyTitle }: AISheet
                             <Button
                               label={t('ai.addEvent')}
                               variant="secondary"
+                              shape="pill"
                               onPress={() => addOneEvent(event, key)}
                             />
                           )
@@ -303,6 +327,7 @@ const styles = StyleSheet.create({
   loading: { alignItems: 'center', gap: Spacing.md, paddingVertical: Spacing.xxl },
   results: { gap: Spacing.xl },
   block: { gap: Spacing.sm },
-  blockHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  blockHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+  blockLabel: { flex: 1 },
   summaryBox: { padding: Spacing.lg, borderRadius: Radius.md },
 });

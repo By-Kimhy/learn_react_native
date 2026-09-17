@@ -13,12 +13,15 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaxContentWidth, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
+import { GlassSurface } from './glass-surface';
+import { IconButton } from './icon-button';
 import { Text } from './text';
 
 export interface BottomSheetProps {
   visible: boolean;
   onClose: () => void;
   title?: string;
+  closeLabel?: string;
   children: ReactNode;
 }
 
@@ -26,11 +29,11 @@ const OPEN_MS = 260;
 const CLOSE_MS = 180;
 
 /**
- * A plain RN `Modal` with an animated panel rather than a native sheet: the
- * behaviour is then identical on iOS, Android and web, which matters because
- * the "+" sheet is the app's most-used surface.
+ * A plain RN `Modal` with an animated glass panel rather than a native sheet:
+ * the behaviour is then identical on iOS, Android and web, which matters
+ * because the "+" sheet is the app's most-used surface.
  */
-export function BottomSheet({ visible, onClose, title, children }: BottomSheetProps) {
+export function BottomSheet({ visible, onClose, title, closeLabel = 'Close', children }: BottomSheetProps) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const { height } = useWindowDimensions();
@@ -63,29 +66,36 @@ export function BottomSheet({ visible, onClose, title, children }: BottomSheetPr
           <Pressable
             style={StyleSheet.absoluteFill}
             accessibilityRole="button"
-            accessibilityLabel="Close"
+            accessibilityLabel={closeLabel}
             onPress={onClose}
           />
         </Animated.View>
 
-        <Animated.View
-          style={[
-            styles.sheet,
-            {
-              backgroundColor: theme.surface,
-              paddingBottom: insets.bottom + Spacing.lg,
-              transform: [{ translateY }],
-            },
-          ]}>
-          <View style={[styles.grabber, { backgroundColor: theme.borderStrong }]} />
+        <Animated.View style={[styles.wrapper, { transform: [{ translateY }] }]}>
+          <GlassSurface effect="regular" style={styles.sheet}>
+            <View style={[styles.highlight, { backgroundColor: theme.glassHighlight }]} />
 
-          {title ? (
-            <Text variant="subheading" style={styles.title}>
-              {title}
-            </Text>
-          ) : null}
+            <View style={{ paddingBottom: insets.bottom + Spacing.lg }}>
+              <View style={[styles.grabber, { backgroundColor: theme.borderStrong }]} />
 
-          {children}
+              {title ? (
+                <View style={styles.titleRow}>
+                  <Text variant="heading" style={styles.title} numberOfLines={1}>
+                    {title}
+                  </Text>
+                  <IconButton
+                    name="close"
+                    accessibilityLabel={closeLabel}
+                    onPress={onClose}
+                    size={20}
+                    filled
+                  />
+                </View>
+              ) : null}
+
+              {children}
+            </View>
+          </GlassSurface>
         </Animated.View>
       </View>
     </Modal>
@@ -94,21 +104,32 @@ export function BottomSheet({ visible, onClose, title, children }: BottomSheetPr
 
 const styles = StyleSheet.create({
   root: { flex: 1, justifyContent: 'flex-end' },
+  wrapper: { width: '100%', maxWidth: MaxContentWidth, alignSelf: 'center' },
   sheet: {
-    width: '100%',
-    maxWidth: MaxContentWidth,
-    alignSelf: 'center',
     borderTopLeftRadius: Radius.xl,
     borderTopRightRadius: Radius.xl,
     paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.sm,
+    overflow: 'hidden',
+  },
+  highlight: {
+    height: StyleSheet.hairlineWidth,
+    // Spans the padded sheet edge to edge, so the specular line reaches the corners.
+    marginHorizontal: -Spacing.lg,
   },
   grabber: {
     width: 40,
     height: 4,
     borderRadius: Radius.pill,
     alignSelf: 'center',
+    marginTop: Spacing.sm,
     marginBottom: Spacing.md,
   },
-  title: { marginBottom: Spacing.md },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: Spacing.md,
+    marginBottom: Spacing.md,
+  },
+  title: { flex: 1 },
 });

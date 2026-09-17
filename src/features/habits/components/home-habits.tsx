@@ -1,7 +1,9 @@
-import { StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 
+import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { Icon } from '@/components/ui/icon';
+import { IconTile } from '@/components/ui/icon-tile';
 import { PressableScale } from '@/components/ui/pressable-scale';
 import { Text } from '@/components/ui/text';
 import { Radius, Spacing } from '@/constants/theme';
@@ -13,13 +15,16 @@ export interface HomeHabitsProps {
   habits: Habit[];
   /** Ids completed today. */
   doneToday: Set<string>;
-  streak: number;
+  /** Current streak per habit id — each card reports its own, not the best. */
+  streaks: Map<string, number>;
   onToggle: (habit: Habit) => void;
   onCreate: () => void;
 }
 
-/** A tappable row of today's habits, with the best running streak on top. */
-export function HomeHabits({ habits, doneToday, streak, onToggle, onCreate }: HomeHabitsProps) {
+const CARD_WIDTH = 148;
+
+/** A scrollable row of today's habits, each with its own tick button. */
+export function HomeHabits({ habits, doneToday, streaks, onToggle, onCreate }: HomeHabitsProps) {
   const theme = useTheme();
   const t = useT();
 
@@ -41,66 +46,69 @@ export function HomeHabits({ habits, doneToday, streak, onToggle, onCreate }: Ho
   }
 
   return (
-    <Card style={styles.card}>
-      {streak > 0 ? (
-        <Text variant="bodyStrong" color="warning">
-          🔥 {t('habits.streak', { count: streak })}
-        </Text>
-      ) : null}
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      // Negative margin lets the row bleed to the screen edge while the cards
+      // still line up with the padded content above them.
+      style={styles.scroll}
+      contentContainerStyle={styles.track}>
+      {habits.map((habit) => {
+        const done = doneToday.has(habit.id);
+        const streak = streaks.get(habit.id) ?? 0;
 
-      <View style={styles.grid}>
-        {habits.map((habit) => {
-          const done = doneToday.has(habit.id);
+        return (
+          <Card key={habit.id} style={styles.card}>
+            <View style={styles.head}>
+              <IconTile emoji={habit.emoji} tone={done ? 'green' : 'blue'} size={34} />
+              {streak > 0 ? <Badge label={String(streak)} tone="red" icon="flame" /> : null}
+            </View>
 
-          return (
+            <View style={styles.copy}>
+              <Text variant="bodyStrong" numberOfLines={1}>
+                {habit.name}
+              </Text>
+              <Text variant="caption" color="textSecondary" numberOfLines={1}>
+                {habit.frequency === 'daily'
+                  ? t('habits.daily')
+                  : t('habits.timesPerWeek', { count: habit.timesPerWeek })}
+              </Text>
+            </View>
+
             <PressableScale
-              key={habit.id}
               accessibilityRole="checkbox"
               accessibilityState={{ checked: done }}
               accessibilityLabel={habit.name}
               onPress={() => onToggle(habit)}
               scaleTo={0.94}
               style={[
-                styles.chip,
-                {
-                  backgroundColor: done ? theme.incomeSoft : theme.surfaceAlt,
-                  borderColor: done ? theme.income : 'transparent',
-                },
+                styles.tick,
+                { backgroundColor: done ? theme.primary : theme.surfaceAlt },
               ]}>
               <Icon
-                name={done ? 'checkmark-circle' : 'ellipse-outline'}
-                size={16}
-                tint={done ? theme.income : theme.textTertiary}
+                name={done ? 'checkmark' : 'add'}
+                size={18}
+                tint={done ? theme.onPrimary : theme.textSecondary}
               />
-              <Text variant="caption">{habit.emoji}</Text>
-              <Text
-                variant="caption"
-                color={done ? 'text' : 'textSecondary'}
-                numberOfLines={1}
-                style={styles.chipLabel}>
-                {habit.name}
-              </Text>
             </PressableScale>
-          );
-        })}
-      </View>
-    </Card>
+          </Card>
+        );
+      })}
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  card: { gap: Spacing.md },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
-  chip: {
-    flexDirection: 'row',
+  scroll: { marginHorizontal: -Spacing.lg },
+  track: { gap: Spacing.md, paddingHorizontal: Spacing.lg, paddingVertical: 2 },
+  card: { width: CARD_WIDTH, gap: Spacing.sm, padding: Spacing.md },
+  head: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.xs },
+  copy: { gap: 1 },
+  tick: {
+    minHeight: 38,
+    borderRadius: Radius.sm,
     alignItems: 'center',
-    gap: Spacing.xs,
-    maxWidth: '100%',
-    minHeight: 36,
-    paddingHorizontal: Spacing.md,
-    borderRadius: Radius.pill,
-    borderWidth: 1,
+    justifyContent: 'center',
   },
-  chipLabel: { flexShrink: 1 },
   empty: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, paddingVertical: Spacing.xs },
 });

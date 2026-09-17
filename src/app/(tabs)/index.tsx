@@ -1,11 +1,13 @@
 import { useRouter } from 'expo-router';
 import { useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { AppBar, AppBarBrand } from '@/components/ui/app-bar';
+import { BrandMark } from '@/components/ui/brand-mark';
 import { Card } from '@/components/ui/card';
 import { Icon, type IconName } from '@/components/ui/icon';
 import { IconButton } from '@/components/ui/icon-button';
+import { PageTitle } from '@/components/ui/page-title';
 import { PressableScale } from '@/components/ui/pressable-scale';
 import { Screen } from '@/components/ui/screen';
 import { SectionHeader } from '@/components/ui/section-header';
@@ -15,7 +17,7 @@ import { EventRow } from '@/features/calendar/components/event-row';
 import { upcomingOccurrences } from '@/features/calendar/selectors';
 import { useEvents } from '@/features/calendar/store';
 import { HomeHabits } from '@/features/habits/components/home-habits';
-import { bestCurrentStreak } from '@/features/habits/selectors';
+import { completionSet, currentStreak } from '@/features/habits/selectors';
 import { useHabits } from '@/features/habits/store';
 import { BalanceCard } from '@/features/money/components/balance-card';
 import { TransactionRow } from '@/features/money/components/transaction-row';
@@ -28,7 +30,7 @@ import { usePreferences, useT } from '@/features/settings/store';
 import { HomeTasks } from '@/features/tasks/components/home-tasks';
 import { bucketTasks, todayProgress } from '@/features/tasks/selectors';
 import { useTasks } from '@/features/tasks/store';
-import { useTheme } from '@/hooks/use-theme';
+import { useAccents } from '@/hooks/use-theme';
 import { currentMonthKey, formatFullDate, timeOfDay, todayISO } from '@/lib/date';
 import type { TranslationKey } from '@/lib/i18n';
 
@@ -39,9 +41,8 @@ const HOME_EVENTS = 3;
 
 export default function HomeScreen() {
   const router = useRouter();
-  const theme = useTheme();
   const t = useT();
-  const insets = useSafeAreaInsets();
+  const accents = useAccents();
   const { preferences } = usePreferences();
   const { transactions } = useTransactions();
   const { activeNotes } = useNotes();
@@ -70,30 +71,49 @@ export default function HomeScreen() {
     const today = todayISO();
     return new Set(completions.filter((c) => c.date === today).map((c) => c.habitId));
   }, [completions]);
-  const habitStreak = useMemo(
-    () => bestCurrentStreak(activeHabits, completions),
-    [activeHabits, completions]
-  );
+  // One pass over completions instead of one per habit card.
+  const habitStreaks = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const habit of activeHabits) {
+      map.set(habit.id, currentStreak(completionSet(completions, habit.id)));
+    }
+    return map;
+  }, [activeHabits, completions]);
 
   const upcoming = useMemo(() => upcomingOccurrences(events, HOME_EVENTS), [events]);
 
   return (
-    <Screen withTabBar contentContainerStyle={{ paddingTop: insets.top + Spacing.md }}>
-      <View style={styles.header}>
-        <View style={styles.greeting}>
-          <Text variant="title">{t(greetingKey)} 👋</Text>
-          <Text variant="body" color="textSecondary">
-            {formatFullDate(new Date(), preferences.language)}
-          </Text>
-        </View>
-
-        <IconButton
-          name="settings-outline"
-          accessibilityLabel={t('settings.title')}
-          onPress={() => router.push('/settings')}
-          filled
+    <Screen
+      withTabBar
+      header={
+        <AppBar
+          title="LifeHub"
+          leading={
+            <AppBarBrand>
+              <BrandMark size={22} />
+            </AppBarBrand>
+          }
+          actions={
+            <>
+              <IconButton
+                name="notifications-outline"
+                accessibilityLabel={t('reminders.title')}
+                onPress={() => router.push('/reminders')}
+              />
+              <IconButton
+                name="settings-outline"
+                accessibilityLabel={t('settings.title')}
+                onPress={() => router.push('/settings')}
+                filled
+              />
+            </>
+          }
         />
-      </View>
+      }>
+      <PageTitle
+        title={`${t(greetingKey)} 👋`}
+        subtitle={formatFullDate(new Date(), preferences.language)}
+      />
 
       <View style={styles.sections}>
         <BalanceCard
@@ -105,23 +125,23 @@ export default function HomeScreen() {
         <View style={styles.quickActions}>
           <QuickAction
             label={t('create.income')}
-            icon="trending-up"
-            tint={theme.income}
-            background={theme.incomeSoft}
+            icon="add"
+            tint={accents.green.tint}
+            background={accents.green.soft}
             onPress={() => router.push('/transaction/new?type=income')}
           />
           <QuickAction
             label={t('create.expense')}
-            icon="trending-down"
-            tint={theme.expense}
-            background={theme.expenseSoft}
+            icon="remove"
+            tint={accents.red.tint}
+            background={accents.red.soft}
             onPress={() => router.push('/transaction/new?type=expense')}
           />
           <QuickAction
             label={t('create.note')}
-            icon="document-text"
-            tint={theme.primary}
-            background={theme.primarySoft}
+            icon="create-outline"
+            tint={accents.blue.tint}
+            background={accents.blue.soft}
             onPress={() => router.push('/note/new?type=text')}
           />
         </View>
@@ -148,7 +168,7 @@ export default function HomeScreen() {
           <HomeHabits
             habits={activeHabits}
             doneToday={habitsDoneToday}
-            streak={habitStreak}
+            streaks={habitStreaks}
             onToggle={(habit) => toggleCompletion(habit.id)}
             onCreate={() => router.push('/habit/new')}
           />
@@ -160,15 +180,15 @@ export default function HomeScreen() {
               title={t('calendar.upcoming')}
               action={{ label: t('common.seeAll'), onPress: () => router.push('/calendar') }}
             />
-            <Card style={styles.transactionsCard}>
+            <Card style={styles.rowsCard}>
               {upcoming.map((occurrence, index) => (
                 <View key={`${occurrence.event.id}-${occurrence.date}`}>
-                  {index > 0 ? (
-                    <View style={[styles.rowDivider, { backgroundColor: theme.border }]} />
-                  ) : null}
+                  {index > 0 ? <RowDivider /> : null}
                   <EventRow
                     event={occurrence.event}
                     isRepeat={occurrence.isRepeat}
+                    date={occurrence.date}
+                    variant="chip"
                     onPress={() => router.push(`/event/${occurrence.event.id}`)}
                   />
                 </View>
@@ -183,12 +203,10 @@ export default function HomeScreen() {
               title={t('money.recentTransactions')}
               action={{ label: t('common.seeAll'), onPress: () => router.push('/transactions') }}
             />
-            <Card style={styles.transactionsCard}>
+            <Card style={styles.rowsCard}>
               {recentTransactions.map((transaction, index) => (
                 <View key={transaction.id}>
-                  {index > 0 ? (
-                    <View style={[styles.rowDivider, { backgroundColor: theme.border }]} />
-                  ) : null}
+                  {index > 0 ? <RowDivider /> : null}
                   <TransactionRow
                     transaction={transaction}
                     onPress={() => router.push(`/transaction/${transaction.id}`)}
@@ -228,10 +246,14 @@ export default function HomeScreen() {
             </Card>
           )}
         </View>
-
       </View>
     </Screen>
   );
+}
+
+function RowDivider() {
+  const accents = useAccents();
+  return <View style={[styles.rowDivider, { backgroundColor: accents.grey.soft }]} />;
 }
 
 function QuickAction({
@@ -255,7 +277,7 @@ function QuickAction({
       scaleTo={0.95}
       style={[styles.quickAction, { backgroundColor: background }]}>
       <Icon name={icon} size={20} tint={tint} />
-      <Text variant="caption" tint={tint} numberOfLines={2} align="center">
+      <Text variant="captionStrong" tint={tint} numberOfLines={2} align="center">
         {label}
       </Text>
     </PressableScale>
@@ -263,25 +285,18 @@ function QuickAction({
 }
 
 const styles = StyleSheet.create({
-  header: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: Spacing.md,
-    marginBottom: Spacing.xl,
-  },
-  greeting: { flex: 1, gap: 2 },
   sections: { gap: Spacing.xxl },
   quickActions: { flexDirection: 'row', gap: Spacing.sm },
   quickAction: {
     flex: 1,
-    minHeight: 78,
+    minHeight: 82,
     borderRadius: Radius.lg,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: Spacing.xs,
+    gap: Spacing.sm,
     paddingHorizontal: Spacing.sm,
   },
-  transactionsCard: { paddingVertical: Spacing.xs, paddingHorizontal: Spacing.lg },
+  rowsCard: { paddingVertical: Spacing.xs, paddingHorizontal: Spacing.lg },
   rowDivider: { height: StyleSheet.hairlineWidth, marginLeft: 54 },
   notesRow: { flexDirection: 'row', gap: Spacing.md, alignItems: 'flex-start' },
   noteSlot: { flex: 1 },

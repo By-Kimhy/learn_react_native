@@ -2,8 +2,9 @@ import type { ReactNode } from 'react';
 import { StyleSheet, Switch, View } from 'react-native';
 
 import { Icon } from '@/components/ui/icon';
+import { IconTile } from '@/components/ui/icon-tile';
 import { Text } from '@/components/ui/text';
-import { Spacing } from '@/constants/theme';
+import { Radius, Spacing } from '@/constants/theme';
 import { usePreferences, useT } from '@/features/settings/store';
 import { useTheme } from '@/hooks/use-theme';
 
@@ -27,8 +28,8 @@ export function ReminderToggle({ enabled, onToggle, children }: ReminderTogglePr
 
   return (
     <View style={styles.container}>
-      <View style={styles.row}>
-        <Icon name="notifications-outline" size={18} color="textSecondary" />
+      <View style={[styles.row, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+        <IconTile icon="notifications-outline" tone="red" size={36} />
         <Text variant="bodyStrong" style={styles.label}>
           {t('reminders.reminder')}
         </Text>
@@ -56,14 +57,22 @@ export function ReminderToggle({ enabled, onToggle, children }: ReminderTogglePr
 
 const styles = StyleSheet.create({
   container: { gap: Spacing.md },
-  row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    minHeight: 56,
+    borderRadius: Radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    paddingHorizontal: Spacing.md,
+  },
   label: { flex: 1 },
   warning: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.sm,
     padding: Spacing.md,
-    borderRadius: Spacing.md,
+    borderRadius: Radius.md,
   },
   warningText: { flex: 1 },
 });

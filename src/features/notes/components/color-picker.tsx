@@ -1,6 +1,5 @@
 import { ScrollView, StyleSheet, View } from 'react-native';
 
-import { Icon } from '@/components/ui/icon';
 import { PressableScale } from '@/components/ui/pressable-scale';
 import { NoteColorKeys, NoteColors, Radius, Spacing } from '@/constants/theme';
 import { useColorScheme, useTheme } from '@/hooks/use-theme';
@@ -33,15 +32,12 @@ export function ColorPicker({ value, onChange, accessibilityLabel }: ColorPicker
             accessibilityLabel={key}
             onPress={() => onChange(key)}
             scaleTo={0.88}
-            style={[
-              styles.swatch,
-              {
-                backgroundColor: swatch,
-                borderColor: selected ? theme.primary : theme.border,
-                borderWidth: selected ? 2 : StyleSheet.hairlineWidth,
-              },
-            ]}>
-            {selected ? <Icon name="checkmark" size={16} color="primary" /> : null}
+            // A ring around the swatch rather than a tick inside it: the colour
+            // is the thing being chosen, so nothing should cover it.
+            style={[styles.ring, selected && { borderColor: theme.primary }]}>
+            <View
+              style={[styles.swatch, { backgroundColor: swatch, borderColor: theme.border }]}
+            />
           </PressableScale>
         );
       })}
@@ -52,12 +48,20 @@ export function ColorPicker({ value, onChange, accessibilityLabel }: ColorPicker
 
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', gap: Spacing.sm, alignItems: 'center', paddingVertical: Spacing.xs },
-  swatch: {
-    width: 38,
-    height: 38,
+  ring: {
+    width: 40,
+    height: 40,
     borderRadius: Radius.pill,
+    borderWidth: 2,
+    borderColor: 'transparent',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  swatch: {
+    width: 30,
+    height: 30,
+    borderRadius: Radius.pill,
+    borderWidth: StyleSheet.hairlineWidth,
   },
   tailSpace: { width: Spacing.xs },
 });

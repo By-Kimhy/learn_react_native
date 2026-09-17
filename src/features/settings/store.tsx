@@ -12,6 +12,7 @@ export const defaultPreferences: UserPreferences = {
   exchangeRate: DEFAULT_EXCHANGE_RATE,
   appearance: 'system',
   language: 'en',
+  timeFormat: '12h',
   notificationsEnabled: true,
 };
 

@@ -1,9 +1,11 @@
 import { StyleSheet, View } from 'react-native';
 
+import { Card } from '@/components/ui/card';
+import { Icon } from '@/components/ui/icon';
 import { Text, tabularNumbers } from '@/components/ui/text';
 import { Radius, Spacing } from '@/constants/theme';
-import { useTheme } from '@/hooks/use-theme';
 import { useT } from '@/features/settings/store';
+import { useAccent, useTheme } from '@/hooks/use-theme';
 
 import { formatAmount } from '../currency';
 import { useMoney } from '../use-money';
@@ -19,46 +21,52 @@ export interface BalanceCardProps {
 }
 
 /**
- * The balance hero. Deliberately the only strongly-coloured surface in the app
- * so it anchors both the Home and Money screens.
+ * The balance hero. A white card rather than a colour block: the two flows
+ * underneath carry the colour, which leaves the balance itself as the only
+ * black figure on the screen and therefore the first thing read.
  */
 export function BalanceCard({ totals, caption, incomeLabel, expensesLabel }: BalanceCardProps) {
-  const theme = useTheme();
   const t = useT();
   const { display, secondary, toSecondary } = useMoney();
 
-  const onCard = theme.onPrimary;
-  const muted = { opacity: 0.72 };
-
   return (
-    <View style={[styles.card, { backgroundColor: theme.primary }]}>
-      <Text variant="overline" tint={onCard} style={muted}>
+    <Card style={styles.card}>
+      <Text variant="overline" color="textTertiary" numberOfLines={1}>
         {(caption ?? t('money.balance')).toUpperCase()}
       </Text>
 
       <View style={styles.balanceGroup}>
         <Text
-          variant="display"
-          tint={onCard}
+          variant="amount"
           style={tabularNumbers}
           numberOfLines={1}
           adjustsFontSizeToFit
           minimumFontScale={0.6}>
           {formatAmount(totals.balance, display)}
         </Text>
-        <Text variant="body" tint={onCard} style={[tabularNumbers, muted]} numberOfLines={1}>
+
+        <Text variant="body" color="textSecondary" style={tabularNumbers} numberOfLines={1}>
           {formatAmount(toSecondary(totals.balance), secondary)}
         </Text>
       </View>
 
-      <View style={[styles.divider, { backgroundColor: onCard }]} />
-
-      <View style={styles.footer}>
-        <Flow label={incomeLabel ?? t('money.income')} amount={totals.income} sign="+" tint={onCard} />
-        <View style={[styles.verticalDivider, { backgroundColor: onCard }]} />
-        <Flow label={expensesLabel ?? t('money.expenses')} amount={totals.expenses} sign="-" tint={onCard} />
+      <View style={styles.flows}>
+        <Flow
+          label={incomeLabel ?? t('money.income')}
+          amount={totals.income}
+          sign="+"
+          accent="green"
+          icon="arrow-down"
+        />
+        <Flow
+          label={expensesLabel ?? t('money.expenses')}
+          amount={totals.expenses}
+          sign="-"
+          accent="red"
+          icon="arrow-up"
+        />
       </View>
-    </View>
+    </Card>
   );
 }
 
@@ -66,37 +74,66 @@ function Flow({
   label,
   amount,
   sign,
-  tint,
+  accent,
+  icon,
 }: {
   label: string;
   amount: number;
   sign: '+' | '-';
-  tint: string;
+  accent: 'green' | 'red';
+  icon: 'arrow-down' | 'arrow-up';
 }) {
-  const { display } = useMoney();
+  const theme = useTheme();
+  const { display, secondary, toSecondary } = useMoney();
+  const { soft, tint } = useAccent(accent);
 
   return (
-    <View style={styles.flow}>
-      <Text variant="caption" tint={tint} style={{ opacity: 0.72 }}>
-        {label}
-      </Text>
-      <Text variant="bodyStrong" tint={tint} style={tabularNumbers} numberOfLines={1}>
-        {sign}
-        {formatAmount(amount, display, { sign: 'never' })}
-      </Text>
+    <View style={[styles.flow, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+      <View style={[styles.flowIcon, { backgroundColor: soft }]}>
+        <Icon name={icon} size={14} tint={tint} />
+      </View>
+
+      <View style={styles.flowCopy}>
+        <Text variant="caption" color="textSecondary" numberOfLines={1}>
+          {label}
+        </Text>
+        <Text variant="bodyStrong" tint={tint} style={tabularNumbers} numberOfLines={1}>
+          {sign}
+          {formatAmount(amount, display, { sign: 'never' })}
+        </Text>
+
+        {/* The same figure in the other currency, as the Money tiles show it —
+            the rate is user-editable, so both sides stay on screen. */}
+        <Text variant="caption" color="textTertiary" style={tabularNumbers} numberOfLines={1}>
+          {sign}
+          {formatAmount(toSecondary(amount), secondary, { sign: 'never' })}
+        </Text>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  card: {
-    borderRadius: Radius.xl,
-    padding: Spacing.xl,
-    gap: Spacing.md,
-  },
+  card: { gap: Spacing.sm },
   balanceGroup: { gap: 2 },
-  divider: { height: StyleSheet.hairlineWidth, opacity: 0.3 },
-  footer: { flexDirection: 'row', alignItems: 'center', gap: Spacing.lg },
-  verticalDivider: { width: StyleSheet.hairlineWidth, alignSelf: 'stretch', opacity: 0.3 },
-  flow: { flex: 1, gap: 2 },
+  flows: { flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.xs },
+  flow: {
+    flex: 1,
+    minWidth: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    padding: Spacing.md,
+    // One step inside the card's radius, so the corners stay concentric.
+    borderRadius: Radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  flowIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: Radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  flowCopy: { flex: 1, minWidth: 0, gap: 1 },
 });

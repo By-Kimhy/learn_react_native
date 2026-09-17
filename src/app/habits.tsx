@@ -2,13 +2,15 @@ import { useRouter } from 'expo-router';
 import { useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 
+import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
+import { ProgressBar } from '@/components/ui/progress-bar';
 import { IconButton } from '@/components/ui/icon-button';
 import { Screen } from '@/components/ui/screen';
 import { ScreenHeader } from '@/components/ui/screen-header';
 import { Text } from '@/components/ui/text';
-import { Radius, Spacing } from '@/constants/theme';
+import { Spacing } from '@/constants/theme';
 import { HabitCard } from '@/features/habits/components/habit-card';
 import { completionSet, todayHabitProgress } from '@/features/habits/selectors';
 import { useHabits } from '@/features/habits/store';
@@ -53,24 +55,23 @@ export default function HabitsScreen() {
         {activeHabits.length > 0 ? (
           <View style={styles.sections}>
             <Card style={styles.summary}>
-              <View style={styles.summaryText}>
-                <Text variant="bodyStrong">
+              <View style={styles.summaryHead}>
+                <Text variant="bodyStrong" numberOfLines={2} style={styles.summaryLabel}>
                   {allDone
                     ? t('habits.allDone')
                     : t('habits.todayProgress', { done: progress.done, total: progress.total })}
                 </Text>
-                <View style={[styles.track, { backgroundColor: theme.surfaceAlt }]}>
-                  <View
-                    style={[
-                      styles.fill,
-                      {
-                        width: `${Math.round((progress.done / progress.total) * 100)}%`,
-                        backgroundColor: allDone ? theme.income : theme.primary,
-                      },
-                    ]}
-                  />
-                </View>
+                <Badge
+                  label={`${Math.round((progress.done / progress.total) * 100)}%`}
+                  tone={allDone ? 'green' : 'blue'}
+                  icon={allDone ? 'checkmark' : undefined}
+                />
               </View>
+
+              <ProgressBar
+                value={progress.done / progress.total}
+                tint={allDone ? theme.income : theme.primary}
+              />
             </Card>
 
             {activeHabits.map((habit) => (
@@ -103,8 +104,7 @@ export default function HabitsScreen() {
 const styles = StyleSheet.create({
   content: { paddingTop: Spacing.lg },
   sections: { gap: Spacing.md },
-  summary: { paddingVertical: Spacing.lg },
-  summaryText: { gap: Spacing.sm },
-  track: { height: 6, borderRadius: Radius.pill, overflow: 'hidden' },
-  fill: { height: '100%', borderRadius: Radius.pill },
+  summary: { gap: Spacing.sm, paddingVertical: Spacing.lg },
+  summaryHead: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+  summaryLabel: { flex: 1 },
 });

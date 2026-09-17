@@ -6,10 +6,12 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Divider } from '@/components/ui/divider';
 import { Icon } from '@/components/ui/icon';
 import { PressableScale } from '@/components/ui/pressable-scale';
+import { ProgressBar } from '@/components/ui/progress-bar';
 import { Text } from '@/components/ui/text';
 import { Radius, Spacing } from '@/constants/theme';
-import { useT } from '@/features/settings/store';
+import { usePreferences, useT } from '@/features/settings/store';
 import { useTheme } from '@/hooks/use-theme';
+import { formatClock, formatDateHeading, todayISO } from '@/lib/date';
 import type { Task } from '@/types';
 
 import { usePriorityColor } from './task-row';
@@ -27,6 +29,7 @@ export interface HomeTasksProps {
 export function HomeTasks({ tasks, progress, onToggle, onSelect, onCreate }: HomeTasksProps) {
   const theme = useTheme();
   const t = useT();
+  const { preferences } = usePreferences();
   const priorityColor = usePriorityColor();
 
   if (tasks.length === 0) {
@@ -46,65 +49,85 @@ export function HomeTasks({ tasks, progress, onToggle, onSelect, onCreate }: Hom
     );
   }
 
+  /** A reminder due today reads better as a time; anything else as its day. */
+  const meta = (task: Task) => {
+    if (task.reminderAt && task.reminderAt.slice(0, 10) === todayISO()) {
+      return formatClock(new Date(task.reminderAt), preferences.language, preferences.timeFormat);
+    }
+
+    if (!task.dueDate) return undefined;
+
+    return formatDateHeading(task.dueDate, preferences.language, {
+      today: t('common.today'),
+      yesterday: t('common.yesterday'),
+    });
+  };
+
   return (
     <Card style={styles.card}>
-      {tasks.map((task, index) => (
-        <Fragment key={task.id}>
-          {index > 0 ? <Divider inset={38} /> : null}
-
-          <View style={styles.row}>
-            <Checkbox
-              checked={task.completed}
-              onToggle={() => onToggle(task)}
-              size={22}
-              tint={priorityColor(task.priority)}
-              accessibilityLabel={task.completed ? t('tasks.uncomplete') : t('tasks.complete')}
-            />
-            <PressableScale
-              accessibilityRole="button"
-              accessibilityLabel={task.title}
-              onPress={() => onSelect(task)}
-              scaleTo={0.99}
-              style={styles.titleWrap}>
-              <Text
-                variant="body"
-                color={task.completed ? 'textTertiary' : 'text'}
-                numberOfLines={1}
-                style={task.completed && styles.done}>
-                {task.title}
-              </Text>
-            </PressableScale>
-          </View>
-        </Fragment>
-      ))}
-
       <View style={styles.progress}>
-        <View style={[styles.track, { backgroundColor: theme.surfaceAlt }]}>
-          <View
-            style={[
-              styles.fill,
-              {
-                width: `${progress.total > 0 ? Math.round((progress.done / progress.total) * 100) : 0}%`,
-                backgroundColor: theme.income,
-              },
-            ]}
-          />
-        </View>
+        <ProgressBar
+          value={progress.total > 0 ? progress.done / progress.total : 0}
+          height={6}
+          accessibilityLabel={t('tasks.progress', { done: progress.done, total: progress.total })}
+        />
         <Text variant="caption" color="textSecondary">
           {t('tasks.progress', { done: progress.done, total: progress.total })}
         </Text>
       </View>
+
+      {tasks.map((task, index) => {
+        const label = meta(task);
+
+        return (
+          <Fragment key={task.id}>
+            {index > 0 ? <Divider inset={38} /> : null}
+
+            <View style={styles.row}>
+              <Checkbox
+                checked={task.completed}
+                onToggle={() => onToggle(task)}
+                size={22}
+                tint={theme.primary}
+                accessibilityLabel={task.completed ? t('tasks.uncomplete') : t('tasks.complete')}
+              />
+
+              <PressableScale
+                accessibilityRole="button"
+                accessibilityLabel={task.title}
+                onPress={() => onSelect(task)}
+                scaleTo={0.99}
+                style={styles.titleWrap}>
+                <Text
+                  variant="body"
+                  color={task.completed ? 'textTertiary' : 'text'}
+                  numberOfLines={1}
+                  style={task.completed && styles.done}>
+                  {task.title}
+                </Text>
+              </PressableScale>
+
+              {label ? (
+                <Text variant="caption" color="textTertiary" numberOfLines={1}>
+                  {label}
+                </Text>
+              ) : null}
+
+              <View style={[styles.priority, { backgroundColor: priorityColor(task.priority) }]} />
+            </View>
+          </Fragment>
+        );
+      })}
     </Card>
   );
 }
 
 const styles = StyleSheet.create({
-  card: { paddingVertical: Spacing.sm, gap: Spacing.sm },
-  row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, paddingVertical: Spacing.sm },
+  card: { paddingVertical: Spacing.md, gap: Spacing.xs },
+  progress: { gap: Spacing.xs, paddingBottom: Spacing.sm },
+  row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, paddingVertical: Spacing.sm },
   titleWrap: { flex: 1 },
   done: { textDecorationLine: 'line-through' },
+  priority: { width: 7, height: 7, borderRadius: Radius.pill },
   empty: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, paddingVertical: Spacing.xs },
-  progress: { gap: Spacing.xs, paddingTop: Spacing.xs },
-  track: { height: 5, borderRadius: Radius.pill, overflow: 'hidden' },
-  fill: { height: '100%', borderRadius: Radius.pill },
 });

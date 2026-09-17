@@ -1,6 +1,6 @@
 import { Platform, StyleSheet, View, type ViewProps } from 'react-native';
 
-import { Radius, Spacing } from '@/constants/theme';
+import { Radius, ShadowColor, Spacing } from '@/constants/theme';
 import { useColorScheme, useTheme } from '@/hooks/use-theme';
 
 export interface CardProps extends ViewProps {
@@ -38,12 +38,12 @@ export function Card({
           borderColor: dark ? theme.border : 'transparent',
           ...Platform.select({
             ios: {
-              shadowColor: '#000000',
-              shadowOpacity: dark ? 0 : 0.06,
-              shadowRadius: 12,
+              shadowColor: ShadowColor,
+              shadowOpacity: dark ? 0 : 0.05,
+              shadowRadius: 14,
               shadowOffset: { width: 0, height: 4 },
             },
-            android: { elevation: dark ? 0 : 2 },
+            android: { elevation: dark ? 0 : 1 },
             default: {},
           }),
         },

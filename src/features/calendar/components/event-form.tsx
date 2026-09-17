@@ -156,8 +156,8 @@ export function EventForm({ mode, initialValues, onSubmit, onCancel, onDelete }:
           />
 
           <View style={styles.field}>
-            <Text variant="captionStrong" color="textSecondary">
-              {t('calendar.repeat')}
+            <Text variant="overline" color="textTertiary">
+              {t('calendar.repeat').toUpperCase()}
             </Text>
             <ListRow
               title={t(REPEAT_LABELS[repeat])}
@@ -184,6 +184,7 @@ export function EventForm({ mode, initialValues, onSubmit, onCancel, onDelete }:
           icon="checkmark"
           onPress={handleSubmit}
           fullWidth
+          shape="pill"
           style={styles.submit}
         />
       </Screen>

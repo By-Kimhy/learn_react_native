@@ -5,25 +5,27 @@ import { Share, StyleSheet, Switch, View } from 'react-native';
 
 import { BottomSheet } from '@/components/ui/bottom-sheet';
 import { Button } from '@/components/ui/button';
+import { BrandMark } from '@/components/ui/brand-mark';
 import { Card } from '@/components/ui/card';
 import { confirm, notify } from '@/components/ui/confirm';
 import { Divider } from '@/components/ui/divider';
+import { Icon, type IconName } from '@/components/ui/icon';
 import { ListRow } from '@/components/ui/list-row';
 import { Screen } from '@/components/ui/screen';
 import { ScreenHeader } from '@/components/ui/screen-header';
 import { SegmentedControl } from '@/components/ui/segmented-control';
 import { Text } from '@/components/ui/text';
 import { TextField } from '@/components/ui/text-field';
-import { Spacing } from '@/constants/theme';
+import { Radius, Spacing } from '@/constants/theme';
 import { maskKey, useAPIKey } from '@/features/ai/key-store';
-import { Currencies, CurrencySymbols, parseAmount } from '@/features/money/currency';
+import { Currencies, parseAmount } from '@/features/money/currency';
 import { ensurePermission } from '@/features/reminders/notifications';
 import { usePreferences, useT } from '@/features/settings/store';
 import { useTheme } from '@/hooks/use-theme';
 import { Languages } from '@/lib/i18n';
 import { clearAll, exportAll, importAll, isExportBundle } from '@/lib/storage';
 import { useDataVersion } from '@/store/data-version';
-import type { AppearancePreference } from '@/types';
+import type { AppearancePreference, TimeFormat } from '@/types';
 
 type Sheet = 'none' | 'rate' | 'import' | 'aiKey';
 
@@ -155,22 +157,22 @@ export default function SettingsScreen() {
       <Screen contentContainerStyle={styles.content}>
         <View style={styles.sections}>
           <Group title={t('settings.currency')}>
-            <View style={styles.field}>
-              <Text variant="captionStrong" color="textSecondary">
-                {t('settings.preferredCurrency')}
-              </Text>
-              <SegmentedControl
-                accessibilityLabel={t('settings.preferredCurrency')}
-                options={Currencies.map((code) => ({
-                  value: code,
-                  label: `${CurrencySymbols[code]} ${code}`,
-                }))}
-                value={preferences.displayCurrency}
-                onChange={(value) => updatePreferences({ displayCurrency: value })}
-              />
-            </View>
+            <ListRow
+              title={t('settings.preferredCurrency')}
+              icon="wallet-outline"
+              tone="blue"
+              right={
+                <SegmentedControl
+                  accessibilityLabel={t('settings.preferredCurrency')}
+                  options={Currencies.map((code) => ({ value: code, label: code }))}
+                  value={preferences.displayCurrency}
+                  onChange={(value) => updatePreferences({ displayCurrency: value })}
+                  style={styles.inlineToggle}
+                />
+              }
+            />
 
-            <Divider />
+            <Divider inset={50} />
 
             <ListRow
               title={t('settings.exchangeRate')}
@@ -178,6 +180,7 @@ export default function SettingsScreen() {
                 rate: preferences.exchangeRate.toLocaleString('en-US'),
               })}
               icon="swap-horizontal-outline"
+              tone="blue"
               showChevron
               onPress={() => {
                 setRateDraft(String(preferences.exchangeRate));
@@ -190,12 +193,14 @@ export default function SettingsScreen() {
           <Group title={t('settings.appearance')}>
             <SegmentedControl
               accessibilityLabel={t('settings.appearance')}
+              iconPosition="above"
+              shape="rounded"
               options={
                 [
-                  { value: 'light', label: t('settings.light') },
-                  { value: 'dark', label: t('settings.dark') },
-                  { value: 'system', label: t('settings.system') },
-                ] as { value: AppearancePreference; label: string }[]
+                  { value: 'light', label: t('settings.light'), icon: 'sunny-outline' },
+                  { value: 'dark', label: t('settings.dark'), icon: 'moon-outline' },
+                  { value: 'system', label: t('settings.system'), icon: 'phone-portrait-outline' },
+                ] as { value: AppearancePreference; label: string; icon: IconName }[]
               }
               value={preferences.appearance}
               onChange={(value) => updatePreferences({ appearance: value })}
@@ -212,6 +217,31 @@ export default function SettingsScreen() {
               value={preferences.language}
               onChange={(value) => updatePreferences({ language: value })}
             />
+
+            <Divider />
+
+            {/* Kept beside language because it is a regional format, not a
+                theme — and deliberately a choice, since plenty of people want
+                a 24-hour clock in a locale that defaults to AM/PM. */}
+            <ListRow
+              title={t('settings.timeFormat')}
+              icon="time-outline"
+              tone="indigo"
+              right={
+                <SegmentedControl
+                  accessibilityLabel={t('settings.timeFormat')}
+                  options={
+                    [
+                      { value: '12h', label: t('settings.time12') },
+                      { value: '24h', label: t('settings.time24') },
+                    ] as { value: TimeFormat; label: string }[]
+                  }
+                  value={preferences.timeFormat}
+                  onChange={(value) => updatePreferences({ timeFormat: value })}
+                  style={styles.inlineToggle}
+                />
+              }
+            />
           </Group>
 
           <Group title={t('settings.notifications')}>
@@ -219,6 +249,7 @@ export default function SettingsScreen() {
               title={t('settings.notificationsEnabled')}
               subtitle={t('settings.notificationsHint')}
               icon="notifications-outline"
+              tone="green"
               right={
                 <Switch
                   value={preferences.notificationsEnabled}
@@ -236,7 +267,9 @@ export default function SettingsScreen() {
                 <ListRow
                   title={t('ai.apiKey')}
                   subtitle={apiKey ? maskKey(apiKey) : t('ai.setupBody')}
-                  icon="sparkles-outline"
+                  subtitleDot={apiKey ? theme.income : undefined}
+                  icon="key-outline"
+                  tone="blue"
                   showChevron
                   onPress={() => {
                     setKeyDraft('');
@@ -249,9 +282,10 @@ export default function SettingsScreen() {
                     <Divider inset={50} />
                     <ListRow
                       title={t('ai.removeKey')}
-                      icon="key-outline"
+                      icon="close-circle-outline"
                       destructive
                       onPress={removeApiKey}
+                      right={<Icon name="close" size={18} tint={theme.expense} />}
                     />
                   </>
                 ) : null}
@@ -265,6 +299,7 @@ export default function SettingsScreen() {
             <ListRow
               title={t('settings.exportData')}
               icon="share-outline"
+              tone="teal"
               showChevron
               onPress={handleExport}
             />
@@ -272,6 +307,7 @@ export default function SettingsScreen() {
             <ListRow
               title={t('settings.importData')}
               icon="download-outline"
+              tone="cyan"
               showChevron
               onPress={() => {
                 setImportError(undefined);
@@ -287,9 +323,17 @@ export default function SettingsScreen() {
             />
           </Group>
 
-          <Group title={t('settings.about')}>
-            <ListRow title={t('settings.version')} icon="information-circle-outline" value={appVersion} />
-          </Group>
+          <View style={styles.footer}>
+            <View style={[styles.footerMark, { backgroundColor: theme.primarySoft }]}>
+              <BrandMark size={22} />
+            </View>
+            <Text variant="bodyStrong" align="center">
+              LifeHub {appVersion}
+            </Text>
+            <Text variant="caption" color="textTertiary" align="center">
+              {t('settings.about')}
+            </Text>
+          </View>
         </View>
       </Screen>
 
@@ -396,5 +440,16 @@ const styles = StyleSheet.create({
   group: { gap: Spacing.sm },
   card: { paddingVertical: Spacing.sm, paddingHorizontal: Spacing.lg, gap: Spacing.sm },
   field: { gap: Spacing.sm, paddingVertical: Spacing.xs },
+  // Narrow enough to sit in a row beside its label without crowding it.
+  inlineToggle: { width: 132 },
+  footer: { alignItems: 'center', gap: Spacing.xs, paddingTop: Spacing.sm },
+  footerMark: {
+    width: 34,
+    height: 34,
+    borderRadius: Radius.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: Spacing.xs,
+  },
   sheetBody: { gap: Spacing.lg, paddingBottom: Spacing.sm },
 });

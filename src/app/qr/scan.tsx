@@ -134,7 +134,7 @@ export default function QRScanScreen() {
         />
 
         {/* Reticle: a plain framed cut-out so the user knows where to aim. */}
-        <View style={styles.overlay} pointerEvents="none">
+        <View style={styles.overlay}>
           <View style={[styles.reticle, { borderColor: theme.onPrimary }]} />
           <View style={[styles.hint, { backgroundColor: theme.overlay }]}>
             <Text variant="caption" tint={theme.onPrimary} align="center">
@@ -155,21 +155,23 @@ export default function QRScanScreen() {
           <View style={styles.actions}>
             {isUrl ? (
               <>
-                <Button label={t('links.open')} icon="open-outline" onPress={openResult} />
+                <Button label={t('links.open')} icon="open-outline" shape="pill" onPress={openResult} />
                 <Button
                   label={t('qr.saveAsLink')}
                   icon="bookmark-outline"
                   variant="secondary"
+                  shape="pill"
                   onPress={saveAsLink}
                 />
               </>
             ) : (
               <>
-                <Button label={t('qr.copy')} icon="copy-outline" onPress={copyResult} />
+                <Button label={t('qr.copy')} icon="copy-outline" shape="pill" onPress={copyResult} />
                 <Button
                   label={t('qr.saveAsNote')}
                   icon="document-text-outline"
                   variant="secondary"
+                  shape="pill"
                   onPress={saveAsNote}
                 />
               </>
@@ -178,11 +180,12 @@ export default function QRScanScreen() {
               label={t('common.share')}
               icon="share-outline"
               variant="secondary"
+              shape="pill"
               onPress={shareResult}
             />
           </View>
 
-          <Button label={t('qr.scanAgain')} icon="scan-outline" variant="ghost" onPress={reset} />
+          <Button label={t('qr.scanAgain')} icon="scan-outline" variant="ghost" shape="pill" onPress={reset} />
         </View>
       </BottomSheet>
     </View>
@@ -197,6 +200,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: Spacing.xl,
+    pointerEvents: 'none',
   },
   reticle: {
     width: 240,

@@ -1,19 +1,16 @@
 import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import { useState } from 'react';
-import { Platform, StyleSheet, View } from 'react-native';
+import { Platform, View } from 'react-native';
 
-import { MinTouchTarget, Radius, Spacing } from '@/constants/theme';
 import { usePreferences, useT } from '@/features/settings/store';
-import { useColorScheme, useTheme } from '@/hooks/use-theme';
+import { useColorScheme } from '@/hooks/use-theme';
 import { formatMediumDate, fromISODate, toISODate, todayISO } from '@/lib/date';
 import type { ISODate } from '@/types';
 
 import { BottomSheet } from './bottom-sheet';
 import { Button } from './button';
-import { Icon } from './icon';
-import { PressableScale } from './pressable-scale';
+import { FieldRow } from './field-row';
 import { TextField } from './text-field';
-import { Text } from './text';
 
 export interface DateFieldProps {
   label: string;
@@ -27,7 +24,6 @@ export interface DateFieldProps {
  * picker exists.
  */
 export function DateField({ label, value, onChange }: DateFieldProps) {
-  const theme = useTheme();
   const scheme = useColorScheme();
   const t = useT();
   const { preferences } = usePreferences();
@@ -64,24 +60,11 @@ export function DateField({ label, value, onChange }: DateFieldProps) {
     setSheetVisible(true);
   };
 
-  return (
-    <View style={styles.container}>
-      <Text variant="captionStrong" color="textSecondary">
-        {label}
-      </Text>
+  const display = formatMediumDate(fromISODate(value), preferences.language);
 
-      <PressableScale
-        accessibilityRole="button"
-        accessibilityLabel={`${label}, ${formatMediumDate(fromISODate(value), preferences.language)}`}
-        onPress={open}
-        scaleTo={0.98}
-        style={[styles.field, { backgroundColor: theme.surfaceAlt }]}>
-        <Icon name="calendar-outline" size={18} color="textSecondary" />
-        <Text variant="body" style={styles.value}>
-          {formatMediumDate(fromISODate(value), preferences.language)}
-        </Text>
-        <Icon name="chevron-down" size={16} color="textTertiary" />
-      </PressableScale>
+  return (
+    <View>
+      <FieldRow label={label} value={display} icon="calendar-outline" tone="blue" onPress={open} />
 
       <BottomSheet visible={sheetVisible} onClose={() => setSheetVisible(false)} title={label}>
         <DateTimePicker
@@ -105,16 +88,3 @@ export function DateField({ label, value, onChange }: DateFieldProps) {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { gap: Spacing.xs },
-  field: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-    minHeight: MinTouchTarget + 4,
-    borderRadius: Radius.md,
-    paddingHorizontal: Spacing.md,
-  },
-  value: { flex: 1 },
-});

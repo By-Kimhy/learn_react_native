@@ -7,7 +7,7 @@ import { Text } from '@/components/ui/text';
 import { Radius, Spacing } from '@/constants/theme';
 import { usePreferences, useT } from '@/features/settings/store';
 import { useTheme } from '@/hooks/use-theme';
-import { formatDateHeading, fromISODate } from '@/lib/date';
+import { formatClock, formatDateHeading } from '@/lib/date';
 import type { Priority, Task } from '@/types';
 
 import { isOverdue } from '../selectors';
@@ -88,7 +88,7 @@ export function TaskRow({ task, onToggle, onPress }: TaskRowProps) {
               <View style={styles.metaItem}>
                 <Icon name="notifications-outline" size={12} color="textTertiary" />
                 <Text variant="caption" color="textTertiary">
-                  {formatReminderTime(task.reminderAt, preferences.language)}
+                  {formatClock(new Date(task.reminderAt), preferences.language, preferences.timeFormat)}
                 </Text>
               </View>
             ) : null}
@@ -96,25 +96,16 @@ export function TaskRow({ task, onToggle, onPress }: TaskRowProps) {
         ) : null}
       </PressableScale>
 
-      {task.priority === 'high' && !task.completed ? (
-        <View style={[styles.flag, { backgroundColor: theme.expenseSoft }]}>
-          <Icon name="flag" size={12} tint={theme.expense} />
-        </View>
-      ) : null}
+      {/* A dot in the priority colour on every open task, rather than a flag on
+          high ones only — the three levels then read as one scale. */}
+      {task.completed ? null : (
+        <View style={[styles.priority, { backgroundColor: priorityColor(task.priority) }]} />
+      )}
     </View>
   );
 }
 
-function formatReminderTime(iso: string, language: string): string {
-  try {
-    return new Intl.DateTimeFormat(language === 'km' ? 'km-KH' : 'en-US', {
-      hour: 'numeric',
-      minute: '2-digit',
-    }).format(new Date(iso));
-  } catch {
-    return fromISODate(iso.slice(0, 10)).toDateString();
-  }
-}
+
 
 const styles = StyleSheet.create({
   row: {
@@ -127,12 +118,5 @@ const styles = StyleSheet.create({
   done: { textDecorationLine: 'line-through' },
   meta: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.md, marginTop: 2 },
   metaItem: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs },
-  flag: {
-    width: 22,
-    height: 22,
-    borderRadius: Radius.pill,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 2,
-  },
+  priority: { width: 8, height: 8, borderRadius: Radius.pill, marginTop: 6 },
 });

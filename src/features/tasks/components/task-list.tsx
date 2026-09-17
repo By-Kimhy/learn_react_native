@@ -33,15 +33,15 @@ export function TaskList({ tasks, onToggle, onDelete, onSelect }: TaskListProps)
             left={{
               label: task.completed ? t('tasks.uncomplete') : t('tasks.complete'),
               icon: task.completed ? 'arrow-undo' : 'checkmark',
-              background: theme.incomeSoft,
-              tint: theme.income,
+              background: theme.income,
+              tint: theme.textInverted,
               onPress: () => onToggle(task),
             }}
             right={{
               label: t('common.delete'),
               icon: 'trash',
-              background: theme.expenseSoft,
-              tint: theme.expense,
+              background: theme.expense,
+              tint: theme.textInverted,
               onPress: () => onDelete(task),
               keepOpen: true,
             }}>

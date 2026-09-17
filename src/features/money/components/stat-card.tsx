@@ -1,8 +1,8 @@
-import { StyleSheet } from 'react-native';
+import type { StyleProp, ViewStyle } from 'react-native';
 
-import { Card } from '@/components/ui/card';
-import { Text, tabularNumbers } from '@/components/ui/text';
-import { Spacing } from '@/constants/theme';
+import { StatTile } from '@/components/ui/stat-tile';
+import type { IconName } from '@/components/ui/icon';
+import type { AccentName } from '@/constants/theme';
 import type { Currency } from '@/types';
 
 import { formatAmount } from '../currency';
@@ -15,9 +15,16 @@ export interface StatCardProps {
   secondaryValue?: number;
   secondaryCurrency?: Currency;
   tone?: AmountTone;
+  /** Overrides the colour derived from `tone` — for neutral figures like an average. */
+  accent?: AccentName;
   sign?: 'auto' | 'always' | 'never';
+  icon?: IconName;
+  /** `tinted` for the Money summary row, `plain` for the Statistics grid. */
+  variant?: 'tinted' | 'plain';
+  style?: StyleProp<ViewStyle>;
 }
 
+/** A money figure in a tile — the shared shape behind Money and Statistics. */
 export function StatCard({
   label,
   value,
@@ -25,32 +32,27 @@ export function StatCard({
   secondaryValue,
   secondaryCurrency,
   tone = 'neutral',
+  accent,
   sign = 'auto',
+  icon,
+  variant = 'tinted',
+  style,
 }: StatCardProps) {
+  const resolved = accent ?? ({ income: 'green', expense: 'red', neutral: 'blue' } as const)[tone];
+
   return (
-    <Card style={styles.card}>
-      <Text variant="caption" color="textSecondary" numberOfLines={1}>
-        {label}
-      </Text>
-
-      <Text
-        variant="subheading"
-        color={tone === 'income' ? 'income' : tone === 'expense' ? 'expense' : 'text'}
-        style={tabularNumbers}
-        numberOfLines={1}>
-        {formatAmount(value, currency, { sign })}
-      </Text>
-
-      {secondaryValue !== undefined && secondaryCurrency ? (
-        <Text variant="caption" color="textTertiary" style={tabularNumbers} numberOfLines={1}>
-          {formatAmount(secondaryValue, secondaryCurrency, { sign })}
-        </Text>
-      ) : null}
-    </Card>
+    <StatTile
+      label={label}
+      value={formatAmount(value, currency, { sign })}
+      sub={
+        secondaryValue !== undefined && secondaryCurrency
+          ? formatAmount(secondaryValue, secondaryCurrency, { sign })
+          : undefined
+      }
+      icon={icon}
+      tone={resolved}
+      variant={variant}
+      style={style}
+    />
   );
 }
-
-const styles = StyleSheet.create({
-  // Two per row on a phone. Narrower than this and long KHR figures truncate.
-  card: { flex: 1, minWidth: 150, gap: Spacing.xs, padding: Spacing.lg },
-});

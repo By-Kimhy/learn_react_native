@@ -32,7 +32,8 @@ function estimateHeight(note: Note): number {
     units += Math.min(lines, 6) * 1.5;
   }
 
-  if (note.labels.length > 0) units += 2;
+  // The footer row (labels and the edited date) now renders on every card.
+  units += 2;
 
   return units;
 }

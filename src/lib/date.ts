@@ -1,4 +1,4 @@
-import type { ISODate } from '@/types';
+import type { ISODate, TimeFormat } from '@/types';
 
 /** Local-calendar date helpers. Everything here stays in the device timezone. */
 
@@ -70,6 +70,15 @@ export function formatMediumDate(date: Date, language = 'en'): string {
   return safeFormat(date, language, { month: 'long', day: 'numeric', year: 'numeric' });
 }
 
+/**
+ * Day and abbreviated month — "17 Sep". For places where a date shares a line
+ * with something else, such as the footer of a note card, where the full form
+ * would crowd out whatever it sits beside.
+ */
+export function formatDayMonth(date: Date, language = 'en'): string {
+  return safeFormat(date, language, { month: 'short', day: 'numeric' });
+}
+
 export function formatMonth(key: string, language = 'en'): string {
   const [year, month] = key.split('-').map(Number);
   return safeFormat(new Date(year, month - 1, 1), language, { month: 'long', year: 'numeric' });
@@ -84,6 +93,23 @@ export function formatMonth(key: string, language = 'en'): string {
 export function formatMonthShort(key: string, language = 'en'): string {
   const [year, month] = key.split('-').map(Number);
   return safeFormat(new Date(year, month - 1, 1), language, { month: 'short' });
+}
+
+/**
+ * A clock time in the user's chosen style.
+ *
+ * 24-hour asks for `hourCycle: 'h23'` rather than `hour12: false`, because the
+ * latter renders midnight as "24:00" in some locales; and for a padded hour, so
+ * a column of times lines up.
+ */
+export function formatClock(date: Date, language: string, format: TimeFormat): string {
+  return safeFormat(
+    date,
+    language,
+    format === '24h'
+      ? { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }
+      : { hour: 'numeric', minute: '2-digit', hour12: true }
+  );
 }
 
 export function formatWeekdayShort(date: Date, language = 'en'): string {
@@ -115,11 +141,12 @@ export function formatDateHeading(
 export function formatRelativeTimestamp(
   isoDateTime: string,
   language: string,
-  labels: { today: string; yesterday: string }
+  labels: { today: string; yesterday: string },
+  format: TimeFormat = '12h'
 ): string {
   const date = new Date(isoDateTime);
   const offset = daysBetween(new Date(), date);
-  if (offset === 0) return safeFormat(date, language, { hour: 'numeric', minute: '2-digit' });
+  if (offset === 0) return formatClock(date, language, format);
   if (offset === -1) return labels.yesterday;
   return safeFormat(date, language, { month: 'short', day: 'numeric' });
 }

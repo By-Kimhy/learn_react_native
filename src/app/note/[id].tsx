@@ -4,14 +4,16 @@ import { KeyboardAvoidingView, Platform, Share, StyleSheet, TextInput, View } fr
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BottomSheet } from '@/components/ui/bottom-sheet';
+import { Chip } from '@/components/ui/chip';
 import { confirm } from '@/components/ui/confirm';
 import { Divider } from '@/components/ui/divider';
+import { GlassSurface } from '@/components/ui/glass-surface';
 import { IconButton } from '@/components/ui/icon-button';
 import { ListRow } from '@/components/ui/list-row';
 import { Screen } from '@/components/ui/screen';
 import { ScreenHeader } from '@/components/ui/screen-header';
 import { Text } from '@/components/ui/text';
-import { Spacing, Typography } from '@/constants/theme';
+import { Radius, Spacing, Typography } from '@/constants/theme';
 import { AISheet } from '@/features/ai/components/ai-sheet';
 import { ChecklistEditor } from '@/features/notes/components/checklist-editor';
 import { ColorPicker } from '@/features/notes/components/color-picker';
@@ -172,7 +174,7 @@ export default function NoteEditorScreen() {
           placeholder={t('notes.titlePlaceholder')}
           placeholderTextColor={theme.textTertiary}
           accessibilityLabel={t('notes.titlePlaceholder')}
-          style={[Typography.heading, styles.title, { color: theme.text }]}
+          style={[Typography.title, styles.title, { color: theme.text }]}
           multiline
         />
 
@@ -191,41 +193,37 @@ export default function NoteEditorScreen() {
           />
         )}
 
-        {note.labels.length > 0 ? (
-          <View style={styles.labelRow}>
-            {note.labels.map((label) => (
-              <Text key={label} variant="caption" color="textSecondary">
-                #{label}
-              </Text>
-            ))}
-          </View>
-        ) : null}
+        <View style={styles.labelRow}>
+          {note.labels.map((label) => (
+            <Chip key={label} label={`#${label}`} />
+          ))}
 
-        <Text variant="caption" color="textTertiary" style={styles.timestamp}>
-          {t('notes.edited', {
-            time: formatRelativeTimestamp(note.updatedAt, preferences.language, {
-              today: t('common.today'),
-              yesterday: t('common.yesterday'),
-            }),
-          })}
-        </Text>
+          {/* Always present, so adding the first label doesn't require the
+              overflow menu. */}
+          <Chip label={t('notes.labels')} icon="add" onPress={() => setSheet('labels')} />
+        </View>
       </Screen>
 
-      <View
-        style={[
-          styles.toolbar,
-          {
-            backgroundColor: background,
-            borderTopColor: theme.border,
-            paddingBottom: insets.bottom + Spacing.xs,
-          },
-        ]}>
+      <GlassSurface
+        effect="regular"
+        style={[styles.toolbar, { paddingBottom: insets.bottom + Spacing.sm }]}>
         <ColorPicker
           value={note.color}
           onChange={(color) => patch({ color })}
           accessibilityLabel={t('notes.color')}
         />
-      </View>
+
+        <Text variant="caption" color="textTertiary" align="center">
+          {t('notes.edited', {
+            time: formatRelativeTimestamp(
+              note.updatedAt,
+              preferences.language,
+              { today: t('common.today'), yesterday: t('common.yesterday') },
+              preferences.timeFormat
+            ),
+          })}
+        </Text>
+      </GlassSurface>
 
       <BottomSheet visible={sheet === 'more'} onClose={() => setSheet('none')}>
         <View style={styles.menu}>
@@ -299,7 +297,13 @@ const styles = StyleSheet.create({
   title: { padding: 0, marginBottom: Spacing.md },
   body: { padding: 0, minHeight: 200 },
   labelRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm, marginTop: Spacing.lg },
-  timestamp: { marginTop: Spacing.lg },
-  toolbar: { borderTopWidth: StyleSheet.hairlineWidth, paddingHorizontal: Spacing.lg },
+  toolbar: {
+    gap: Spacing.sm,
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.md,
+    borderTopLeftRadius: Radius.xl,
+    borderTopRightRadius: Radius.xl,
+    overflow: 'hidden',
+  },
   menu: { paddingBottom: Spacing.sm },
 });

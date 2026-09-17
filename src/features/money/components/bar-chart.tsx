@@ -1,26 +1,28 @@
 import { StyleSheet, View } from 'react-native';
 
-import { Text, tabularNumbers } from '@/components/ui/text';
+import { Text } from '@/components/ui/text';
 import { Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import type { Currency } from '@/types';
 
-import { formatAmount } from '../currency';
 import type { Bucket } from '../selectors';
 
 export interface BarChartProps {
   buckets: Bucket[];
-  currency: Currency;
   /** `both` draws paired income/expense bars; `expenses` draws one series. */
   series?: 'both' | 'expenses';
   height?: number;
 }
 
+/** Height reserved under the plot for the bucket labels. */
+const LABEL_BAND = 22;
+/** Fractions of the peak to rule a gridline at. */
+const GRIDLINES = [1, 0.5, 0];
+
 /**
  * A dependency-free bar chart. Charting libraries would add weight and native
  * config for what is, at this size, a handful of proportional rectangles.
  */
-export function BarChart({ buckets, currency, series = 'both', height = 132 }: BarChartProps) {
+export function BarChart({ buckets, series = 'both', height = 150 }: BarChartProps) {
   const theme = useTheme();
 
   const peak = Math.max(
@@ -30,21 +32,32 @@ export function BarChart({ buckets, currency, series = 'both', height = 132 }: B
 
   /** A flat-zero chart would divide by zero; fall back to a 1-unit scale. */
   const scale = peak > 0 ? peak : 1;
+  const plotHeight = height - LABEL_BAND;
 
   return (
     <View style={styles.container}>
-      <Text variant="caption" color="textTertiary" align="right" style={tabularNumbers}>
-        {`max ${formatAmount(peak, currency)}`}
-      </Text>
-
       <View style={[styles.plot, { height }]}>
+        {/* Gridlines sit behind the bars and give the eye a baseline to read
+            heights against, rather than a single "max" caption doing that job. */}
+        <View style={[styles.grid, { bottom: LABEL_BAND }]}>
+          {GRIDLINES.map((fraction) => (
+            <View
+              key={fraction}
+              style={[
+                styles.gridline,
+                { bottom: fraction * plotHeight, backgroundColor: theme.border },
+              ]}
+            />
+          ))}
+        </View>
+
         {buckets.map((bucket) => (
           <View key={bucket.key} style={styles.column}>
             <View style={styles.bars}>
               {series === 'both' ? (
-                <Bar value={bucket.income} scale={scale} height={height} color={theme.income} />
+                <Bar value={bucket.income} scale={scale} height={plotHeight} color={theme.income} />
               ) : null}
-              <Bar value={bucket.expenses} scale={scale} height={height} color={theme.expense} />
+              <Bar value={bucket.expenses} scale={scale} height={plotHeight} color={theme.expense} />
             </View>
 
             <Text variant="caption" color="textTertiary" numberOfLines={1} align="center">
@@ -68,14 +81,14 @@ function Bar({
   height: number;
   color: string;
 }) {
-  // Keep a 2pt stub for empty buckets so the axis still reads as a series.
-  const barHeight = value > 0 ? Math.max((value / scale) * (height - 22), 4) : 2;
+  // Keep a 3pt stub for empty buckets so the axis still reads as a series.
+  const barHeight = value > 0 ? Math.max((value / scale) * height, 5) : 3;
 
   return (
     <View
       style={[
         styles.bar,
-        { height: barHeight, backgroundColor: color, opacity: value > 0 ? 1 : 0.3 },
+        { height: barHeight, backgroundColor: color, opacity: value > 0 ? 1 : 0.35 },
       ]}
     />
   );
@@ -84,7 +97,9 @@ function Bar({
 const styles = StyleSheet.create({
   container: { gap: Spacing.xs },
   plot: { flexDirection: 'row', alignItems: 'flex-end', gap: Spacing.xs },
+  grid: { position: 'absolute', left: 0, right: 0, top: 0, pointerEvents: 'none' },
+  gridline: { position: 'absolute', left: 0, right: 0, height: StyleSheet.hairlineWidth },
   column: { flex: 1, alignItems: 'center', gap: Spacing.xs, justifyContent: 'flex-end' },
-  bars: { flexDirection: 'row', alignItems: 'flex-end', gap: 2 },
-  bar: { width: 9, borderRadius: Radius.sm },
+  bars: { flexDirection: 'row', alignItems: 'flex-end', gap: 3 },
+  bar: { width: 11, borderTopLeftRadius: Radius.xs, borderTopRightRadius: Radius.xs },
 });

@@ -1,18 +1,22 @@
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { AppBar, AppBarBrand } from '@/components/ui/app-bar';
+import { BrandMark } from '@/components/ui/brand-mark';
 import { BottomSheet } from '@/components/ui/bottom-sheet';
 import { Chip } from '@/components/ui/chip';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Icon } from '@/components/ui/icon';
 import { IconButton } from '@/components/ui/icon-button';
+import { PageTitle } from '@/components/ui/page-title';
 import { PressableScale } from '@/components/ui/pressable-scale';
-import { Screen } from '@/components/ui/screen';
+import { Screen, TabBarClearance } from '@/components/ui/screen';
+import { SectionLabel } from '@/components/ui/section-header';
 import { Text } from '@/components/ui/text';
 import { TextField } from '@/components/ui/text-field';
-import { Radius, Spacing } from '@/constants/theme';
+import { Radius, ShadowColor, Spacing } from '@/constants/theme';
 import { NotesGrid } from '@/features/notes/components/notes-grid';
 import { searchNotes, useNotes } from '@/features/notes/store';
 import { useT } from '@/features/settings/store';
@@ -47,26 +51,46 @@ export default function NotesScreen() {
 
   return (
     <>
-      <Screen withTabBar contentContainerStyle={{ paddingTop: insets.top + Spacing.md }}>
-        <View style={styles.header}>
-          <Text variant="title" style={styles.headerTitle}>
-            {t('notes.title')}
-          </Text>
-          {archivedNotes.length > 0 ? (
-            <IconButton
-              name="archive-outline"
-              accessibilityLabel={t('notes.archive')}
-              onPress={() => router.push('/archive')}
-              filled
-            />
-          ) : null}
-        </View>
+      <Screen
+        withTabBar
+        header={
+          <AppBar
+            title="LifeHub"
+            leading={
+              <AppBarBrand>
+                <BrandMark size={22} />
+              </AppBarBrand>
+            }
+            actions={
+              <IconButton
+                name="settings-outline"
+                accessibilityLabel={t('settings.title')}
+                onPress={() => router.push('/settings')}
+                filled
+              />
+            }
+          />
+        }>
+        <PageTitle
+          title={t('notes.title')}
+          actions={
+            archivedNotes.length > 0 ? (
+              <IconButton
+                name="archive-outline"
+                accessibilityLabel={t('notes.archive')}
+                onPress={() => router.push('/archive')}
+                filled
+              />
+            ) : undefined
+          }
+        />
 
         <View style={styles.search}>
           <TextField
             value={query}
             onChangeText={setQuery}
             placeholder={t('notes.searchPlaceholder')}
+            icon="search"
             autoCapitalize="none"
             autoCorrect={false}
             returnKeyType="search"
@@ -75,8 +99,17 @@ export default function NotesScreen() {
         </View>
 
         {allLabels.length > 0 ? (
-          <View style={styles.labels}>
-            <Chip label={t('common.all')} selected={label === null} onPress={() => setLabel(null)} />
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.labels}
+            contentContainerStyle={styles.labelsTrack}>
+            <Chip
+              label={t('common.all')}
+              count={activeNotes.length}
+              selected={label === null}
+              onPress={() => setLabel(null)}
+            />
             {allLabels.map((name) => (
               <Chip
                 key={name}
@@ -85,7 +118,7 @@ export default function NotesScreen() {
                 onPress={() => setLabel(label === name ? null : name)}
               />
             ))}
-          </View>
+          </ScrollView>
         ) : null}
 
         {filtered.length === 0 ? (
@@ -107,9 +140,7 @@ export default function NotesScreen() {
           <View style={styles.sections}>
             {pinned.length > 0 ? (
               <View style={styles.section}>
-                <Text variant="overline" color="textSecondary">
-                  {t('notes.pinned').toUpperCase()}
-                </Text>
+                <SectionLabel label={t('notes.pinned')} meta={t('notes.count', { count: pinned.length })} />
                 <NotesGrid notes={pinned} onSelect={(note) => openNote(note.id)} />
               </View>
             ) : null}
@@ -117,9 +148,7 @@ export default function NotesScreen() {
             {others.length > 0 ? (
               <View style={styles.section}>
                 {pinned.length > 0 ? (
-                  <Text variant="overline" color="textSecondary">
-                    {t('notes.others').toUpperCase()}
-                  </Text>
+                  <SectionLabel label={t('notes.others')} meta={t('notes.count', { count: others.length })} />
                 ) : null}
                 <NotesGrid notes={others} onSelect={(note) => openNote(note.id)} />
               </View>
@@ -128,7 +157,7 @@ export default function NotesScreen() {
         )}
       </Screen>
 
-      {/* Sits above the tab bar so creating a note is always one tap away. */}
+      {/* Sits above the floating tab bar so creating a note is always one tap away. */}
       <PressableScale
         accessibilityRole="button"
         accessibilityLabel={t('notes.createNote')}
@@ -136,7 +165,11 @@ export default function NotesScreen() {
         scaleTo={0.92}
         style={[
           styles.fab,
-          { backgroundColor: theme.surface, borderColor: theme.border },
+          {
+            backgroundColor: theme.surface,
+            borderColor: theme.border,
+            bottom: TabBarClearance + insets.bottom,
+          },
         ]}>
         <Icon name="create-outline" size={22} color="primary" />
       </PressableScale>
@@ -170,24 +203,22 @@ export default function NotesScreen() {
 }
 
 const styles = StyleSheet.create({
-  header: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: Spacing.lg },
-  headerTitle: { flex: 1 },
   search: { marginBottom: Spacing.md },
-  labels: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm, marginBottom: Spacing.lg },
+  // Bleeds to the screen edge so the row reads as scrollable.
+  labels: { marginHorizontal: -Spacing.lg, marginBottom: Spacing.lg },
+  labelsTrack: { flexDirection: 'row', gap: Spacing.sm, paddingHorizontal: Spacing.lg },
   sections: { gap: Spacing.xl },
   section: { gap: Spacing.sm },
   fab: {
     position: 'absolute',
     right: Spacing.lg,
-    // The scene ends at the tab bar, so this clears the raised "+" button only.
-    bottom: Spacing.xxl,
     width: 56,
     height: 56,
     borderRadius: Radius.pill,
     borderWidth: StyleSheet.hairlineWidth,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000000',
+    shadowColor: ShadowColor,
     shadowOpacity: 0.12,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 4 },

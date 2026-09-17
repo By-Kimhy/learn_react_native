@@ -1,17 +1,18 @@
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { AppBar, AppBarBrand } from '@/components/ui/app-bar';
+import { BrandMark } from '@/components/ui/brand-mark';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { IconButton } from '@/components/ui/icon-button';
+import { PageTitle } from '@/components/ui/page-title';
 import { Screen } from '@/components/ui/screen';
 import { SectionHeader } from '@/components/ui/section-header';
 import { SegmentedControl } from '@/components/ui/segmented-control';
 import { Text } from '@/components/ui/text';
 import { Spacing } from '@/constants/theme';
-import { BalanceCard } from '@/features/money/components/balance-card';
 import { CategoryBreakdown } from '@/features/money/components/category-breakdown';
 import { StatCard } from '@/features/money/components/stat-card';
 import { TransactionList } from '@/features/money/components/transaction-list';
@@ -28,7 +29,6 @@ const TOP_CATEGORIES = 5;
 export default function MoneyScreen() {
   const router = useRouter();
   const t = useT();
-  const insets = useSafeAreaInsets();
   const { preferences, updatePreferences } = usePreferences();
   const { transactions } = useTransactions();
   const { display, secondary, toSecondary } = useMoney();
@@ -48,33 +48,54 @@ export default function MoneyScreen() {
   const recent = monthTransactions.slice(0, RECENT_LIMIT);
 
   return (
-    <Screen withTabBar contentContainerStyle={{ paddingTop: insets.top + Spacing.md }}>
-      <View style={styles.header}>
-        <Text variant="title" style={styles.headerTitle}>
-          {t('money.title')}
-        </Text>
-        <IconButton
-          name="stats-chart-outline"
-          accessibilityLabel={t('money.statistics')}
-          onPress={() => router.push('/statistics')}
-          filled
+    <Screen
+      withTabBar
+      header={
+        <AppBar
+          title="LifeHub"
+          leading={
+            <AppBarBrand>
+              <BrandMark size={22} />
+            </AppBarBrand>
+          }
+          actions={
+            <IconButton
+              name="settings-outline"
+              accessibilityLabel={t('settings.title')}
+              onPress={() => router.push('/settings')}
+              filled
+            />
+          }
         />
-        <IconButton
-          name="list-outline"
-          accessibilityLabel={t('money.allTransactions')}
-          onPress={() => router.push('/transactions')}
-          filled
-        />
-      </View>
+      }>
+      <PageTitle
+        title={t('money.title')}
+        actions={
+          <>
+            <IconButton
+              name="stats-chart-outline"
+              accessibilityLabel={t('money.statistics')}
+              onPress={() => router.push('/statistics')}
+              filled
+            />
+            <IconButton
+              name="receipt-outline"
+              accessibilityLabel={t('money.allTransactions')}
+              onPress={() => router.push('/transactions')}
+              filled
+            />
+          </>
+        }
+      />
 
       <View style={styles.sections}>
-        <View style={styles.monthBar}>
+        <Card style={styles.monthBar} padded={false}>
           <IconButton
             name="chevron-back"
             accessibilityLabel={t('common.previousMonth')}
             onPress={() => setMonth((current) => addMonths(current, -1))}
           />
-          <Text variant="subheading" align="center" style={styles.monthLabel}>
+          <Text variant="subheading" align="center" style={styles.monthLabel} numberOfLines={1}>
             {formatMonth(month, preferences.language)}
           </Text>
           <IconButton
@@ -83,9 +104,7 @@ export default function MoneyScreen() {
             onPress={() => setMonth((current) => addMonths(current, 1))}
             disabled={isCurrentMonth}
           />
-        </View>
-
-        <BalanceCard totals={totals} caption={formatMonth(month, preferences.language)} />
+        </Card>
 
         <SegmentedControl
           accessibilityLabel={t('money.displayCurrency')}
@@ -98,42 +117,54 @@ export default function MoneyScreen() {
         />
 
         <View style={styles.stats}>
-          <StatCard
-            label={t('money.income')}
-            value={totals.income}
-            currency={display}
-            secondaryValue={toSecondary(totals.income)}
-            secondaryCurrency={secondary}
-            tone="income"
-            sign="always"
-          />
-          <StatCard
-            label={t('money.expenses')}
-            value={-totals.expenses}
-            currency={display}
-            secondaryValue={-toSecondary(totals.expenses)}
-            secondaryCurrency={secondary}
-            tone="expense"
-          />
-          <StatCard
-            label={t('money.savings')}
-            value={allTime.balance}
-            currency={display}
-            secondaryValue={toSecondary(allTime.balance)}
-            secondaryCurrency={secondary}
-          />
+          {/* The month's two flows pair up; the running balance they add to
+              gets its own full-width row rather than a cramped third column. */}
+          <View style={styles.statsRow}>
+            <StatCard
+              label={t('money.income')}
+              value={totals.income}
+              currency={display}
+              secondaryValue={toSecondary(totals.income)}
+              secondaryCurrency={secondary}
+              tone="income"
+              sign="always"
+              icon="arrow-down-circle"
+            />
+            <StatCard
+              label={t('money.expenses')}
+              value={-totals.expenses}
+              currency={display}
+              secondaryValue={-toSecondary(totals.expenses)}
+              secondaryCurrency={secondary}
+              tone="expense"
+              icon="arrow-up-circle"
+            />
+          </View>
+
+          {/* Wrapped in a row of its own so StatTile's `flex: 1` still means
+              "fill the width" rather than "stretch down the column". */}
+          <View style={styles.statsRow}>
+            <StatCard
+              label={t('money.savings')}
+              value={allTime.balance}
+              currency={display}
+              secondaryValue={toSecondary(allTime.balance)}
+              secondaryCurrency={secondary}
+              icon="wallet-outline"
+            />
+          </View>
         </View>
 
         {byCategory.length > 0 ? (
-          <View>
+          <Card>
             <SectionHeader
               title={t('money.spendingByCategory')}
+              accent
+              inCard
               action={{ label: t('common.seeAll'), onPress: () => router.push('/statistics') }}
             />
-            <Card>
-              <CategoryBreakdown totals={byCategory} currency={display} limit={TOP_CATEGORIES} />
-            </Card>
-          </View>
+            <CategoryBreakdown totals={byCategory} currency={display} limit={TOP_CATEGORIES} />
+          </Card>
         ) : null}
 
         <View>
@@ -173,10 +204,9 @@ export default function MoneyScreen() {
 }
 
 const styles = StyleSheet.create({
-  header: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: Spacing.lg },
-  headerTitle: { flex: 1 },
-  sections: { gap: Spacing.xl },
-  monthBar: { flexDirection: 'row', alignItems: 'center' },
+  sections: { gap: Spacing.lg },
+  monthBar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: Spacing.xs },
   monthLabel: { flex: 1 },
-  stats: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
+  stats: { gap: Spacing.sm },
+  statsRow: { flexDirection: 'row', gap: Spacing.sm },
 });

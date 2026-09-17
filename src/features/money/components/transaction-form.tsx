@@ -5,10 +5,12 @@ import { Button } from '@/components/ui/button';
 import { DateField } from '@/components/ui/date-field';
 import { IconButton } from '@/components/ui/icon-button';
 import { Screen } from '@/components/ui/screen';
+import { SegmentedControl } from '@/components/ui/segmented-control';
 import { ScreenHeader } from '@/components/ui/screen-header';
 import { TextField } from '@/components/ui/text-field';
 import { Spacing } from '@/constants/theme';
 import { useT } from '@/features/settings/store';
+import { useTheme } from '@/hooks/use-theme';
 import { confirm } from '@/components/ui/confirm';
 import { todayISO } from '@/lib/date';
 import type { Currency, ISODate, TransactionType } from '@/types';
@@ -46,7 +48,7 @@ interface Errors {
  * every keystroke, so the form never shouts at a user mid-typing.
  */
 export function TransactionForm({
-  type,
+  type: initialType,
   rate,
   initialValues,
   onSubmit,
@@ -55,7 +57,9 @@ export function TransactionForm({
   mode,
 }: TransactionFormProps) {
   const t = useT();
+  const theme = useTheme();
 
+  const [type, setType] = useState<TransactionType>(initialType);
   const [amount, setAmount] = useState(initialValues?.amount ?? '');
   const [currency, setCurrency] = useState<Currency>(initialValues?.currency ?? 'USD');
   const [categoryId, setCategoryId] = useState<string | null>(initialValues?.categoryId ?? null);
@@ -127,6 +131,24 @@ export function TransactionForm({
 
       <Screen contentContainerStyle={styles.content}>
         <View style={styles.fields}>
+          {mode === 'create' ? (
+            <SegmentedControl
+              accessibilityLabel={t('transaction.type')}
+              options={[
+                { value: 'income', label: t('money.income') },
+                { value: 'expense', label: t('money.expenses') },
+              ]}
+              value={type}
+              onChange={(next) => {
+                setType(next);
+                // An income category is not valid on an expense, so the choice
+                // is cleared rather than silently carried across.
+                setCategoryId(null);
+              }}
+              tint={type === 'income' ? theme.income : theme.expense}
+            />
+          ) : null}
+
           <AmountInput
             value={amount}
             onChangeValue={(next) => {
@@ -170,6 +192,7 @@ export function TransactionForm({
           icon="checkmark"
           onPress={handleSubmit}
           fullWidth
+          shape="pill"
           style={styles.submit}
         />
       </Screen>

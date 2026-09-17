@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
+import { GlassSurface } from './glass-surface';
 import { IconButton } from './icon-button';
 import { Text } from './text';
 
@@ -18,8 +19,12 @@ export interface ScreenHeaderProps {
 }
 
 /**
- * A lightweight in-screen header. We render our own rather than using native
- * stack headers so modal and pushed screens look identical on both platforms.
+ * The glass header on pushed and modal screens. We render our own rather than
+ * using native stack headers so both platforms look identical.
+ *
+ * Unlike `<AppBar>`, this one stays in the layout flow: it is a sibling of
+ * `<Screen>` on twenty-odd routes, several of which render their own lists, and
+ * floating it would mean threading a content inset through all of them.
  */
 export function ScreenHeader({
   title,
@@ -33,12 +38,10 @@ export function ScreenHeader({
   const insets = useSafeAreaInsets();
 
   return (
-    <View
-      style={[
-        styles.container,
-        { backgroundColor: theme.background, borderBottomColor: theme.border },
-        withSafeArea && { paddingTop: insets.top + Spacing.sm },
-      ]}>
+    <GlassSurface
+      effect="regular"
+      radius={0}
+      style={[styles.container, withSafeArea && { paddingTop: insets.top }]}>
       <View style={styles.row}>
         <View style={styles.side}>
           {onBack ? (
@@ -59,25 +62,27 @@ export function ScreenHeader({
 
         <View style={[styles.side, styles.rightSide]}>{right}</View>
       </View>
-    </View>
+
+      <View style={[styles.hairline, { backgroundColor: theme.glassBorder }]} />
+    </GlassSurface>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    paddingBottom: Spacing.sm,
-    paddingHorizontal: Spacing.sm,
-  },
+  container: { overflow: 'hidden' },
   row: {
     width: '100%',
     maxWidth: MaxContentWidth,
     alignSelf: 'center',
+    minHeight: 52,
     flexDirection: 'row',
     alignItems: 'center',
+    paddingHorizontal: Spacing.sm,
+    paddingBottom: Spacing.xs,
   },
   // Fixed side widths keep the title optically centred regardless of actions.
-  side: { minWidth: 88, flexDirection: 'row', alignItems: 'center' },
+  side: { minWidth: 84, flexDirection: 'row', alignItems: 'center' },
   rightSide: { justifyContent: 'flex-end' },
   titleGroup: { flex: 1, gap: 2 },
+  hairline: { height: StyleSheet.hairlineWidth, width: '100%' },
 });

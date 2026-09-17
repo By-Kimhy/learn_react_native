@@ -3,7 +3,7 @@ import { StyleSheet, View } from 'react-native';
 
 import { Card } from '@/components/ui/card';
 import { Divider } from '@/components/ui/divider';
-import { Text } from '@/components/ui/text';
+import { SectionLabel } from '@/components/ui/section-header';
 import { Spacing } from '@/constants/theme';
 import { usePreferences, useT } from '@/features/settings/store';
 import { formatDateHeading } from '@/lib/date';
@@ -30,12 +30,13 @@ export function TransactionList({ transactions, onSelect }: TransactionListProps
     <View style={styles.groups}>
       {groups.map((group) => (
         <View key={group.date} style={styles.group}>
-          <Text variant="captionStrong" color="textSecondary">
-            {formatDateHeading(group.date, preferences.language, {
+          <SectionLabel
+            label={formatDateHeading(group.date, preferences.language, {
               today: t('common.today'),
               yesterday: t('common.yesterday'),
             })}
-          </Text>
+            meta={String(group.transactions.length)}
+          />
 
           <Card style={styles.card}>
             {group.transactions.map((transaction, index) => (

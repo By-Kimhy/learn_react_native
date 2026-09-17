@@ -11,6 +11,8 @@ import { Divider } from '@/components/ui/divider';
 import { IconButton } from '@/components/ui/icon-button';
 import { ListRow } from '@/components/ui/list-row';
 import { Screen } from '@/components/ui/screen';
+import { SegmentedControl } from '@/components/ui/segmented-control';
+import { SectionLabel } from '@/components/ui/section-header';
 import { ScreenHeader } from '@/components/ui/screen-header';
 import { Text } from '@/components/ui/text';
 import { TextField } from '@/components/ui/text-field';
@@ -18,8 +20,9 @@ import { Radius, Spacing } from '@/constants/theme';
 import { isUrlLike } from '@/features/links/selectors';
 import { qrFileName, shareQRImage } from '@/features/qr/save-qr';
 import { useQRCodes } from '@/features/qr/store';
-import { useT } from '@/features/settings/store';
+import { usePreferences, useT } from '@/features/settings/store';
 import { useTheme } from '@/hooks/use-theme';
+import { formatRelativeTimestamp } from '@/lib/date';
 
 const QR_SIZE = 220;
 
@@ -32,6 +35,7 @@ export default function QRScreen() {
   const router = useRouter();
   const theme = useTheme();
   const t = useT();
+  const { preferences } = usePreferences();
   const { codes, recordCode, clearHistory } = useQRCodes();
 
   const [value, setValue] = useState('');
@@ -109,8 +113,21 @@ export default function QRScreen() {
 
       <Screen contentContainerStyle={styles.content}>
         <View style={styles.sections}>
+          <SegmentedControl
+            accessibilityLabel={t('qr.title')}
+            options={[
+              { value: 'generate', label: t('qr.generate'), icon: 'qr-code-outline' },
+              { value: 'scan', label: t('qr.scan'), icon: 'scan-outline' },
+            ]}
+            value="generate"
+            onChange={(next) => {
+              if (next === 'scan') router.push('/qr/scan');
+            }}
+          />
+
           <TextField
             label={t('qr.content')}
+            meta={trimmed.length > 0 ? String(trimmed.length) : undefined}
             value={value}
             onChangeText={setValue}
             placeholder={t('qr.contentPlaceholder')}
@@ -136,10 +153,14 @@ export default function QRScreen() {
                   />
                 </View>
 
+                <Text variant="caption" color="textSecondary" align="center" numberOfLines={2}>
+                  {trimmed}
+                </Text>
+
                 <View style={styles.actions}>
-                  <Button label={t('qr.save')} icon="download-outline" variant="secondary" onPress={handleSave} />
-                  <Button label={t('common.share')} icon="share-outline" variant="secondary" onPress={handleShareText} />
-                  <Button label={t('qr.copy')} icon="copy-outline" variant="secondary" onPress={handleCopy} />
+                  <Button label={t('qr.save')} icon="download-outline" variant="secondary" shape="pill" onPress={handleSave} />
+                  <Button label={t('common.share')} icon="share-outline" variant="secondary" shape="pill" onPress={handleShareText} />
+                  <Button label={t('qr.copy')} icon="copy-outline" variant="secondary" shape="pill" onPress={handleCopy} />
                 </View>
               </>
             ) : (
@@ -153,17 +174,17 @@ export default function QRScreen() {
 
           {codes.length > 0 ? (
             <View style={styles.history}>
-              <View style={styles.historyHeader}>
-                <Text variant="overline" color="textSecondary">
-                  {t('qr.history').toUpperCase()}
-                </Text>
-                <IconButton
-                  name="trash-outline"
-                  size={18}
-                  accessibilityLabel={t('qr.clearHistory')}
-                  onPress={handleClearHistory}
-                />
-              </View>
+              <SectionLabel
+                label={t('qr.history')}
+                right={
+                  <IconButton
+                    name="trash-outline"
+                    size={18}
+                    accessibilityLabel={t('qr.clearHistory')}
+                    onPress={handleClearHistory}
+                  />
+                }
+              />
 
               <Card style={styles.card}>
                 {codes.map((code, index) => (
@@ -171,8 +192,16 @@ export default function QRScreen() {
                     {index > 0 ? <Divider inset={50} /> : null}
                     <ListRow
                       title={code.value}
-                      subtitle={code.kind === 'scanned' ? t('qr.scanned') : t('qr.generated')}
+                      subtitle={`${code.kind === 'scanned' ? t('qr.scanned') : t('qr.generated')} · ${formatRelativeTimestamp(
+                        code.createdAt,
+                        preferences.language,
+                        { today: t('common.today'), yesterday: t('common.yesterday') },
+                        preferences.timeFormat
+                      )}`}
+                      subtitleDot={code.kind === 'scanned' ? theme.income : theme.primary}
                       icon={code.kind === 'scanned' ? 'scan-outline' : 'qr-code-outline'}
+                      tone={code.kind === 'scanned' ? 'green' : 'purple'}
+                      iconShape="circle"
                       onPress={() => setValue(code.value)}
                       right={
                         isUrlLike(code.value) ? (

@@ -14,6 +14,10 @@ export interface ButtonProps {
   onPress?: () => void;
   variant?: ButtonVariant;
   icon?: IconName;
+  /** Puts the icon after the label — for "Continue ›" style actions. */
+  iconTrailing?: boolean;
+  /** `pill` fully rounds the button; `rounded` keeps the softer card corner. */
+  shape?: 'rounded' | 'pill';
   disabled?: boolean;
   loading?: boolean;
   fullWidth?: boolean;
@@ -25,6 +29,8 @@ export function Button({
   onPress,
   variant = 'primary',
   icon,
+  iconTrailing = false,
+  shape = 'rounded',
   disabled = false,
   loading = false,
   fullWidth = false,
@@ -47,6 +53,7 @@ export function Button({
   }[variant];
 
   const isDisabled = disabled || loading;
+  const glyph = icon ? <Icon name={icon} size={18} tint={foreground} /> : null;
 
   return (
     <PressableScale
@@ -57,7 +64,8 @@ export function Button({
       onPress={onPress}
       style={[
         styles.button,
-        { backgroundColor: background },
+        { backgroundColor: background, borderRadius: shape === 'pill' ? Radius.pill : Radius.md },
+        variant === 'primary' && !isDisabled && { shadowColor: theme.primary, ...styles.primaryGlow },
         fullWidth && styles.fullWidth,
         isDisabled && styles.disabled,
         style,
@@ -67,10 +75,11 @@ export function Button({
           <ActivityIndicator size="small" color={foreground} />
         ) : (
           <>
-            {icon ? <Icon name={icon} size={18} tint={foreground} /> : null}
-            <Text variant="bodyStrong" tint={foreground}>
+            {iconTrailing ? null : glyph}
+            <Text variant="bodyStrong" tint={foreground} numberOfLines={1}>
               {label}
             </Text>
+            {iconTrailing ? glyph : null}
           </>
         )}
       </View>
@@ -80,10 +89,16 @@ export function Button({
 
 const styles = StyleSheet.create({
   button: {
-    minHeight: MinTouchTarget + 6,
-    borderRadius: Radius.md,
+    minHeight: MinTouchTarget + 8,
     justifyContent: 'center',
     paddingHorizontal: Spacing.xl,
+  },
+  // A tinted lift under the primary action, matching the raised "+" on the tab bar.
+  primaryGlow: {
+    shadowOpacity: 0.28,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 5 },
+    elevation: 4,
   },
   fullWidth: {
     alignSelf: 'stretch',

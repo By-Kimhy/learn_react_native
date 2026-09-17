@@ -56,8 +56,8 @@ export function SwipeRow({ children, left, right }: SwipeRowProps) {
             { backgroundColor: action.background },
             side === 'left' ? styles.actionLeft : styles.actionRight,
           ]}>
-          <Icon name={action.icon} size={20} tint={action.tint} />
-          <Text variant="caption" tint={action.tint} numberOfLines={1}>
+          <Icon name={action.icon} size={22} tint={action.tint} />
+          <Text variant="captionStrong" tint={action.tint} numberOfLines={1}>
             {action.label}
           </Text>
         </PressableScale>
@@ -86,6 +86,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: Spacing.xs,
   },
-  actionLeft: { borderTopLeftRadius: Radius.md, borderBottomLeftRadius: Radius.md },
-  actionRight: { borderTopRightRadius: Radius.md, borderBottomRightRadius: Radius.md },
+  actionLeft: { borderTopLeftRadius: Radius.lg, borderBottomLeftRadius: Radius.lg },
+  actionRight: { borderTopRightRadius: Radius.lg, borderBottomRightRadius: Radius.lg },
 });

@@ -22,7 +22,9 @@ export interface AmountInputProps {
 
 /**
  * Amount + currency in one control, with the live equivalent underneath. The
- * conversion is shown as the user types so they never have to do the maths.
+ * figure is the hero of the form rather than a labelled field: it is the one
+ * thing the user came to type, and the conversion updates as they do so they
+ * never have to do the maths.
  */
 export function AmountInput({
   value,
@@ -44,16 +46,8 @@ export function AmountInput({
 
   return (
     <View style={styles.container}>
-      <Text variant="captionStrong" color="textSecondary">
-        {t('transaction.amount')}
-      </Text>
-
-      <View
-        style={[
-          styles.field,
-          { backgroundColor: theme.surfaceAlt, borderColor: error ? theme.expense : 'transparent' },
-        ]}>
-        <Text variant="title" tint={accent}>
+      <View style={styles.field}>
+        <Text variant="title" tint={error ? theme.expense : theme.textTertiary} style={styles.symbol}>
           {CurrencySymbols[currency]}
         </Text>
 
@@ -66,42 +60,65 @@ export function AmountInput({
           placeholderTextColor={theme.textTertiary}
           autoFocus={autoFocus}
           accessibilityLabel={t('transaction.amount')}
-          style={[styles.input, Typography.title, tabularNumbers, { color: theme.text }]}
+          style={[
+            styles.input,
+            Typography.amountLarge,
+            tabularNumbers,
+            { color: error ? theme.expense : theme.text },
+          ]}
         />
       </View>
 
-      <SegmentedControl
-        accessibilityLabel={t('transaction.currency')}
-        options={Currencies.map((code) => ({ value: code, label: `${CurrencySymbols[code]} ${code}` }))}
-        value={currency}
-        onChange={onChangeCurrency}
-      />
+      {/* Narrower than the form so the toggle reads as a control on the figure
+          rather than as the next field down. */}
+      <View style={styles.currencyRow}>
+        <SegmentedControl
+          accessibilityLabel={t('transaction.currency')}
+          options={Currencies.map((code) => ({ value: code, label: `${CurrencySymbols[code]} ${code}` }))}
+          value={currency}
+          onChange={onChangeCurrency}
+          style={styles.currency}
+        />
+      </View>
 
       {error ? (
-        <Text variant="caption" color="expense">
+        <Text variant="caption" color="expense" align="center">
           {error}
         </Text>
       ) : (
-        <Text variant="caption" color="textSecondary" style={tabularNumbers}>
+        <Text
+          variant="caption"
+          color="textSecondary"
+          align="center"
+          style={tabularNumbers}
+          numberOfLines={2}>
           {t('transaction.equals')} {formatAmount(converted ?? 0, target)}
           {'  ·  '}
           {t('transaction.rateNote')} 1 USD = {rate.toLocaleString('en-US')} KHR
         </Text>
       )}
+
+      {/* A hairline in the type's colour, so income and expense forms are
+          distinguishable at a glance without colouring the figure itself. */}
+      <View style={[styles.accent, { backgroundColor: accent }]} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { gap: Spacing.sm },
+  container: { gap: Spacing.md, alignItems: 'center' },
   field: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'baseline',
+    justifyContent: 'center',
     gap: Spacing.sm,
-    borderRadius: Radius.md,
-    borderWidth: 1,
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
+    maxWidth: '100%',
   },
-  input: { flex: 1, padding: 0 },
+  symbol: { opacity: 0.8 },
+  // Shrinks with the figure instead of stretching, which would push the symbol
+  // off to the left edge of the form.
+  input: { flexShrink: 1, minWidth: 80, padding: 0, textAlign: 'left' },
+  currencyRow: { width: '100%', alignItems: 'center' },
+  currency: { width: 200, maxWidth: '100%' },
+  accent: { width: 44, height: 3, borderRadius: Radius.pill, opacity: 0.9 },
 });

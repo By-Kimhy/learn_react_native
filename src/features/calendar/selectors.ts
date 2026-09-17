@@ -58,7 +58,15 @@ export function daysWithEvents(events: CalendarEvent[], from: ISODate, to: ISODa
   return days;
 }
 
-/** The next `limit` occurrences from today onwards, scanning `days` ahead. */
+/**
+ * The next `limit` events from today onwards, scanning `days` ahead — at most
+ * one row per event.
+ *
+ * A daily or weekly event would otherwise fill the whole list with copies of
+ * itself and hide everything else coming up, so only its soonest occurrence
+ * earns a place. The repeat rule is still on the row, which is what tells the
+ * reader there are more to come.
+ */
 export function upcomingOccurrences(
   events: CalendarEvent[],
   limit = 5,
@@ -66,15 +74,22 @@ export function upcomingOccurrences(
   today: ISODate = todayISO()
 ): EventOccurrence[] {
   const found: EventOccurrence[] = [];
+  const seen = new Set<string>();
   const cursor = fromISODate(today);
 
   for (let offset = 0; offset < days && found.length < limit; offset += 1) {
-    const iso = toISODate(cursor);
-    found.push(...eventsOn(events, iso));
+    for (const occurrence of eventsOn(events, toISODate(cursor))) {
+      if (seen.has(occurrence.event.id)) continue;
+
+      seen.add(occurrence.event.id);
+      found.push(occurrence);
+      if (found.length === limit) break;
+    }
+
     cursor.setDate(cursor.getDate() + 1);
   }
 
-  return found.slice(0, limit);
+  return found;
 }
 
 export interface MonthCell {

@@ -3,10 +3,26 @@ import { StyleSheet, View } from 'react-native';
 import { Icon } from '@/components/ui/icon';
 import { PressableScale } from '@/components/ui/pressable-scale';
 import { Text } from '@/components/ui/text';
-import { Radius, Spacing } from '@/constants/theme';
-import { useT } from '@/features/settings/store';
-import { useColorScheme, useNoteColor, useTheme } from '@/hooks/use-theme';
+import { Radius, Spacing, type AccentName } from '@/constants/theme';
+import { usePreferences, useT } from '@/features/settings/store';
+import { formatDayMonth } from '@/lib/date';
+import { useAccents, useNoteColor, useTheme } from '@/hooks/use-theme';
 import type { Note } from '@/types';
+
+/**
+ * Which accent a note's tick marks take, so a checklist's ticks belong to the
+ * card they sit on rather than all being the same blue.
+ */
+const CHECK_TONES: Record<string, AccentName> = {
+  default: 'blue',
+  coral: 'red',
+  sand: 'amber',
+  mint: 'green',
+  sky: 'blue',
+  lavender: 'purple',
+  blush: 'pink',
+  slate: 'grey',
+};
 
 /** Enough to hint at the content without turning the grid into a wall of text. */
 const PREVIEW_ITEMS = 5;
@@ -19,9 +35,11 @@ export interface NoteCardProps {
 
 export function NoteCard({ note, onPress }: NoteCardProps) {
   const theme = useTheme();
-  const scheme = useColorScheme();
   const t = useT();
+  const { preferences } = usePreferences();
   const background = useNoteColor(note.color);
+  const accents = useAccents();
+  const check = accents[CHECK_TONES[note.color] ?? 'blue'];
 
   const visibleItems = note.checklist.filter((item) => item.text.trim().length > 0);
   const doneCount = visibleItems.filter((item) => item.done).length;
@@ -57,11 +75,15 @@ export function NoteCard({ note, onPress }: NoteCardProps) {
         <View style={styles.checklist}>
           {visibleItems.slice(0, PREVIEW_ITEMS).map((item) => (
             <View key={item.id} style={styles.checkRow}>
-              <Icon
-                name={item.done ? 'checkbox' : 'square-outline'}
-                size={15}
-                tint={item.done ? theme.textTertiary : theme.textSecondary}
-              />
+              <View
+                style={[
+                  styles.check,
+                  item.done
+                    ? { backgroundColor: check.tint, borderColor: check.tint }
+                    : { borderColor: theme.textTertiary },
+                ]}>
+                {item.done ? <Icon name="checkmark" size={11} tint={theme.textInverted} /> : null}
+              </View>
               <Text
                 variant="caption"
                 color={item.done ? 'textTertiary' : 'text'}
@@ -90,14 +112,14 @@ export function NoteCard({ note, onPress }: NoteCardProps) {
         </Text>
       ) : null}
 
-      {note.labels.length > 0 ? (
+      <View style={styles.footer}>
         <View style={styles.labels}>
           {note.labels.slice(0, 3).map((label) => (
             <View
               key={label}
               style={[
                 styles.label,
-                { backgroundColor: scheme === 'dark' ? 'rgba(255,255,255,0.09)' : 'rgba(0,0,0,0.06)' },
+                { backgroundColor: theme.tintOverlay },
               ]}>
               <Text variant="caption" color="textSecondary" numberOfLines={1}>
                 #{label}
@@ -105,7 +127,11 @@ export function NoteCard({ note, onPress }: NoteCardProps) {
             </View>
           ))}
         </View>
-      ) : null}
+
+        <Text variant="caption" color="textTertiary" numberOfLines={1} style={styles.date}>
+          {formatDayMonth(new Date(note.updatedAt), preferences.language)}
+        </Text>
+      </View>
     </PressableScale>
   );
 }
@@ -120,10 +146,22 @@ const styles = StyleSheet.create({
   pin: { position: 'absolute', top: Spacing.sm, right: Spacing.sm },
   title: { paddingRight: Spacing.lg },
   checklist: { gap: Spacing.xs },
-  checkRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs },
+  checkRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+  check: {
+    width: 16,
+    height: 16,
+    borderRadius: 5,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   checkText: { flex: 1 },
   done: { textDecorationLine: 'line-through' },
   counter: { marginTop: 2 },
-  labels: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.xs },
-  label: { paddingHorizontal: Spacing.sm, paddingVertical: 2, borderRadius: Radius.sm },
+  footer: { flexDirection: 'row', alignItems: 'flex-end', gap: Spacing.sm, marginTop: 2 },
+  // The labels take the slack and wrap; the date keeps its intrinsic width so
+  // neither can squeeze the other down to an unreadable sliver.
+  labels: { flex: 1, flexShrink: 1, flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.xs },
+  date: { flexShrink: 0 },
+  label: { maxWidth: '100%', paddingHorizontal: Spacing.sm, paddingVertical: 2, borderRadius: Radius.sm },
 });

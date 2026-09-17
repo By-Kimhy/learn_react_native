@@ -2,16 +2,13 @@ import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/d
 import { useState } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
 
-import { MinTouchTarget, Radius, Spacing } from '@/constants/theme';
 import { usePreferences, useT } from '@/features/settings/store';
 import { formatTime, parseTime, toTimeString } from '@/features/reminders/scheduler';
-import { useColorScheme, useTheme } from '@/hooks/use-theme';
+import { useColorScheme } from '@/hooks/use-theme';
 
 import { BottomSheet } from './bottom-sheet';
 import { Button } from './button';
-import { Icon } from './icon';
-import { PressableScale } from './pressable-scale';
-import { Text } from './text';
+import { FieldRow } from './field-row';
 import { TextField } from './text-field';
 
 export interface TimeFieldProps {
@@ -24,7 +21,6 @@ export interface TimeFieldProps {
 
 /** The time counterpart of `DateField`, using each platform's native picker. */
 export function TimeField({ label, value, onChange, placeholder }: TimeFieldProps) {
-  const theme = useTheme();
   const scheme = useColorScheme();
   const t = useT();
   const { preferences } = usePreferences();
@@ -61,26 +57,18 @@ export function TimeField({ label, value, onChange, placeholder }: TimeFieldProp
     setSheetVisible(true);
   };
 
-  const display = value ? formatTime(value, preferences.language) : (placeholder ?? '—');
+  const display = value ? formatTime(value, preferences.language, preferences.timeFormat) : (placeholder ?? '—');
 
   return (
-    <View style={styles.container}>
-      <Text variant="captionStrong" color="textSecondary">
-        {label}
-      </Text>
-
-      <PressableScale
-        accessibilityRole="button"
-        accessibilityLabel={`${label}, ${display}`}
+    <View>
+      <FieldRow
+        label={label}
+        value={display}
+        icon="time-outline"
+        tone="indigo"
+        muted={!value}
         onPress={open}
-        scaleTo={0.98}
-        style={[styles.field, { backgroundColor: theme.surfaceAlt }]}>
-        <Icon name="time-outline" size={18} color="textSecondary" />
-        <Text variant="body" color={value ? 'text' : 'textTertiary'} style={styles.value}>
-          {display}
-        </Text>
-        <Icon name="chevron-down" size={16} color="textTertiary" />
-      </PressableScale>
+      />
 
       <BottomSheet visible={sheetVisible} onClose={() => setSheetVisible(false)} title={label}>
         <View style={styles.picker}>
@@ -116,15 +104,5 @@ function toDate(value?: string): Date {
 }
 
 const styles = StyleSheet.create({
-  container: { gap: Spacing.xs },
-  field: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-    minHeight: MinTouchTarget + 4,
-    borderRadius: Radius.md,
-    paddingHorizontal: Spacing.md,
-  },
-  value: { flex: 1 },
   picker: { alignItems: 'center' },
 });

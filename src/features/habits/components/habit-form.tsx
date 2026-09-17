@@ -126,8 +126,8 @@ export function HabitForm({
           />
 
           <View style={styles.field}>
-            <Text variant="captionStrong" color="textSecondary">
-              {t('habits.icon')}
+            <Text variant="overline" color="textTertiary">
+              {t('habits.icon').toUpperCase()}
             </Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               <View style={styles.emojiRow}>
@@ -157,8 +157,8 @@ export function HabitForm({
           </View>
 
           <View style={styles.field}>
-            <Text variant="captionStrong" color="textSecondary">
-              {t('habits.frequency')}
+            <Text variant="overline" color="textTertiary">
+              {t('habits.frequency').toUpperCase()}
             </Text>
             <SegmentedControl
               accessibilityLabel={t('habits.frequency')}
@@ -212,6 +212,7 @@ export function HabitForm({
           icon="checkmark"
           onPress={handleSubmit}
           fullWidth
+          shape="pill"
           style={styles.submit}
         />
       </Screen>

@@ -3,10 +3,12 @@ import { Fragment, useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { Card } from '@/components/ui/card';
+import { Chip } from '@/components/ui/chip';
 import { Divider } from '@/components/ui/divider';
 import { EmptyState } from '@/components/ui/empty-state';
 import { IconButton } from '@/components/ui/icon-button';
 import { Screen } from '@/components/ui/screen';
+import { SectionHeader } from '@/components/ui/section-header';
 import { ScreenHeader } from '@/components/ui/screen-header';
 import { Text } from '@/components/ui/text';
 import { Spacing } from '@/constants/theme';
@@ -15,7 +17,7 @@ import { MonthGrid } from '@/features/calendar/components/month-grid';
 import { daysWithEvents, eventsOn, monthGrid } from '@/features/calendar/selectors';
 import { useEvents } from '@/features/calendar/store';
 import { usePreferences, useT } from '@/features/settings/store';
-import { addMonths, currentMonthKey, formatDateHeading, monthKey, formatMonth, todayISO } from '@/lib/date';
+import { addMonths, currentMonthKey, formatDateHeading, formatMediumDate, fromISODate, monthKey, formatMonth, todayISO } from '@/lib/date';
 
 export default function CalendarScreen() {
   const router = useRouter();
@@ -43,17 +45,29 @@ export default function CalendarScreen() {
     if (monthKey(date) !== month) setMonth(monthKey(date));
   };
 
+  const isOnToday = selected === todayISO() && month === currentMonthKey();
+
+  const goToToday = () => {
+    setSelected(todayISO());
+    setMonth(currentMonthKey());
+  };
+
   return (
     <>
       <ScreenHeader
         title={t('calendar.title')}
         onBack={() => router.back()}
         right={
-          <IconButton
-            name="add"
-            accessibilityLabel={t('calendar.newEvent')}
-            onPress={() => router.push(`/event/new?date=${selected}`)}
-          />
+          <>
+            {isOnToday ? null : (
+              <Chip label={t('common.today')} onPress={goToToday} />
+            )}
+            <IconButton
+              name="add"
+              accessibilityLabel={t('calendar.newEvent')}
+              onPress={() => router.push(`/event/new?date=${selected}`)}
+            />
+          </>
         }
       />
 
@@ -79,18 +93,18 @@ export default function CalendarScreen() {
             <MonthGrid cells={cells} selected={selected} onSelect={selectDate} />
           </Card>
 
-          <View style={styles.dayHeader}>
-            <Text variant="heading">
-              {formatDateHeading(selected, preferences.language, {
+          <View>
+            <SectionHeader
+              title={formatDateHeading(selected, preferences.language, {
                 today: t('common.today'),
                 yesterday: t('common.yesterday'),
               })}
-            </Text>
-            {dayEvents.length > 0 ? (
-              <Text variant="caption" color="textSecondary">
-                {t('calendar.eventsCount', { count: dayEvents.length })}
-              </Text>
-            ) : null}
+              meta={
+                dayEvents.length > 0
+                  ? t('calendar.eventsCount', { count: dayEvents.length })
+                  : formatMediumDate(fromISODate(selected), preferences.language)
+              }
+            />
           </View>
 
           {dayEvents.length > 0 ? (
@@ -107,19 +121,18 @@ export default function CalendarScreen() {
               ))}
             </Card>
           ) : (
-            <Card padded={false}>
-              <EmptyState
-                icon="calendar-outline"
-                title={t('calendar.noEvents')}
-                body={t('calendar.noEventsBody')}
-                action={{
-                  label: t('calendar.createEvent'),
-                  icon: 'add',
-                  onPress: () => router.push(`/event/new?date=${selected}`),
-                }}
-                compact
-              />
-            </Card>
+            <EmptyState
+              icon="calendar-outline"
+              title={t('calendar.noEvents')}
+              body={t('calendar.noEventsBody')}
+              action={{
+                label: t('calendar.createEvent'),
+                icon: 'add',
+                onPress: () => router.push(`/event/new?date=${selected}`),
+              }}
+              compact
+              dashed
+            />
           )}
         </View>
       </Screen>
@@ -136,10 +149,9 @@ function shift(iso: string, days: number): string {
 
 const styles = StyleSheet.create({
   content: { paddingTop: Spacing.lg },
-  sections: { gap: Spacing.lg },
+  sections: { gap: Spacing.xl },
   calendarCard: { gap: Spacing.sm, paddingHorizontal: Spacing.sm, paddingVertical: Spacing.md },
   monthBar: { flexDirection: 'row', alignItems: 'center' },
   monthLabel: { flex: 1 },
-  dayHeader: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: Spacing.md },
   eventsCard: { paddingVertical: Spacing.xs, paddingHorizontal: Spacing.lg },
 });

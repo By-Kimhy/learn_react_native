@@ -2,14 +2,17 @@ import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
+import { Badge } from '@/components/ui/badge';
+import { Card } from '@/components/ui/card';
 import { confirm } from '@/components/ui/confirm';
 import { EmptyState } from '@/components/ui/empty-state';
+import { ProgressBar } from '@/components/ui/progress-bar';
 import { IconButton } from '@/components/ui/icon-button';
 import { Screen } from '@/components/ui/screen';
 import { ScreenHeader } from '@/components/ui/screen-header';
 import { SegmentedControl } from '@/components/ui/segmented-control';
 import { Text } from '@/components/ui/text';
-import { Radius, Spacing } from '@/constants/theme';
+import { Spacing } from '@/constants/theme';
 import { clearReminder } from '@/features/reminders/scheduler';
 import { useT } from '@/features/settings/store';
 import { TaskList } from '@/features/tasks/components/task-list';
@@ -116,22 +119,22 @@ export default function TasksScreen() {
           />
 
           {progress.total > 0 ? (
-            <View style={styles.progress}>
-              <View style={[styles.track, { backgroundColor: theme.surfaceAlt }]}>
-                <View
-                  style={[
-                    styles.fill,
-                    {
-                      width: `${Math.round((progress.done / progress.total) * 100)}%`,
-                      backgroundColor: theme.income,
-                    },
-                  ]}
+            <Card style={styles.progressCard}>
+              <View style={styles.progressHead}>
+                <Text variant="bodyStrong" numberOfLines={1} style={styles.progressLabel}>
+                  {t('tasks.progress', { done: progress.done, total: progress.total })}
+                </Text>
+                <Badge
+                  label={`${Math.round((progress.done / progress.total) * 100)}%`}
+                  tone={progress.done === progress.total ? 'green' : 'blue'}
                 />
               </View>
-              <Text variant="caption" color="textSecondary">
-                {t('tasks.progress', { done: progress.done, total: progress.total })}
-              </Text>
-            </View>
+
+              <ProgressBar
+                value={progress.done / progress.total}
+                tint={progress.done === progress.total ? theme.income : theme.primary}
+              />
+            </Card>
           ) : null}
         </View>
 
@@ -162,7 +165,7 @@ export default function TasksScreen() {
 const styles = StyleSheet.create({
   content: { paddingTop: Spacing.lg },
   header: { gap: Spacing.md, marginBottom: Spacing.lg },
-  progress: { gap: Spacing.xs },
-  track: { height: 6, borderRadius: Radius.pill, overflow: 'hidden' },
-  fill: { height: '100%', borderRadius: Radius.pill },
+  progressCard: { gap: Spacing.sm, padding: Spacing.lg },
+  progressHead: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+  progressLabel: { flex: 1 },
 });

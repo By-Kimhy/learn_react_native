@@ -5,6 +5,7 @@ import { StyleSheet, View } from 'react-native';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Screen } from '@/components/ui/screen';
+import { SectionHeader } from '@/components/ui/section-header';
 import { ScreenHeader } from '@/components/ui/screen-header';
 import { SegmentedControl } from '@/components/ui/segmented-control';
 import { Text } from '@/components/ui/text';
@@ -13,6 +14,7 @@ import { BarChart } from '@/features/money/components/bar-chart';
 import { CategoryBreakdown } from '@/features/money/components/category-breakdown';
 import { Legend } from '@/features/money/components/legend';
 import { StatCard } from '@/features/money/components/stat-card';
+import { formatAmount } from '@/features/money/currency';
 import {
   dailyBuckets,
   monthlyBuckets,
@@ -60,6 +62,10 @@ export default function StatisticsScreen() {
       formatMonthShort(key, language)
     );
   }, [transactions, display, range, preferences]);
+
+  /** The span the bars cover, read off the first and last bucket label. */
+  const rangeLabel =
+    buckets.length > 0 ? `${buckets[0].label} – ${buckets[buckets.length - 1].label}` : '';
 
   const rangeTotals = useMemo(() => {
     const income = buckets.reduce((sum, bucket) => sum + bucket.income, 0);
@@ -127,54 +133,87 @@ export default function StatisticsScreen() {
           />
 
           <Card style={styles.chartCard}>
-            <Text variant="subheading">{t('stats.incomeVsExpenses')}</Text>
-            <BarChart buckets={buckets} currency={display} series="both" />
-            <Legend
-              items={[
-                { label: t('money.income'), color: theme.income },
-                { label: t('money.expenses'), color: theme.expense },
-              ]}
-            />
+            <View style={styles.chartHead}>
+              <View style={styles.chartTitle}>
+                <Text variant="heading" numberOfLines={2}>
+                  {t('stats.incomeVsExpenses')}
+                </Text>
+                {/* The span the bars actually cover, read off the first and
+                    last bucket rather than recomputed. */}
+                {rangeLabel ? (
+                  <Text variant="caption" color="textSecondary" numberOfLines={1}>
+                    {rangeLabel}
+                  </Text>
+                ) : null}
+              </View>
+
+              <Legend
+                items={[
+                  { label: t('money.income'), color: theme.income },
+                  { label: t('money.expenses'), color: theme.expense },
+                ]}
+              />
+            </View>
+
+            <BarChart buckets={buckets} series="both" />
           </Card>
 
           <View style={styles.stats}>
-            <StatCard
-              label={t('money.income')}
-              value={rangeTotals.income}
-              currency={display}
-              secondaryValue={toSecondary(rangeTotals.income)}
-              secondaryCurrency={secondary}
-              tone="income"
-              sign="always"
-            />
-            <StatCard
-              label={t('money.expenses')}
-              value={-rangeTotals.expenses}
-              currency={display}
-              secondaryValue={-toSecondary(rangeTotals.expenses)}
-              secondaryCurrency={secondary}
-              tone="expense"
-            />
-            <StatCard
-              label={t('stats.avgPerDay')}
-              value={averagePerDay}
-              currency={display}
-              secondaryValue={toSecondary(averagePerDay)}
-              secondaryCurrency={secondary}
-            />
-            <StatCard
-              label={t('stats.savings')}
-              value={allTime.balance}
-              currency={display}
-              secondaryValue={toSecondary(allTime.balance)}
-              secondaryCurrency={secondary}
-            />
+            <View style={styles.statsRow}>
+              <StatCard
+                label={t('money.income')}
+                value={rangeTotals.income}
+                currency={display}
+                secondaryValue={toSecondary(rangeTotals.income)}
+                secondaryCurrency={secondary}
+                tone="income"
+                sign="always"
+                icon="trending-up"
+                variant="plain"
+              />
+              <StatCard
+                label={t('money.expenses')}
+                value={-rangeTotals.expenses}
+                currency={display}
+                secondaryValue={-toSecondary(rangeTotals.expenses)}
+                secondaryCurrency={secondary}
+                tone="expense"
+                icon="trending-down"
+                variant="plain"
+              />
+            </View>
+
+            <View style={styles.statsRow}>
+              <StatCard
+                label={t('stats.avgPerDay')}
+                value={averagePerDay}
+                currency={display}
+                secondaryValue={toSecondary(averagePerDay)}
+                secondaryCurrency={secondary}
+                icon="time-outline"
+                accent="amber"
+                variant="plain"
+              />
+              <StatCard
+                label={t('stats.savings')}
+                value={allTime.balance}
+                currency={display}
+                secondaryValue={toSecondary(allTime.balance)}
+                secondaryCurrency={secondary}
+                icon="wallet-outline"
+                variant="plain"
+              />
+            </View>
           </View>
 
           <Card style={styles.chartCard}>
-            <Text variant="subheading">{t('stats.spendingByCategory')}</Text>
+            <SectionHeader
+              title={t('stats.spendingByCategory')}
+              meta={formatAmount(rangeTotals.expenses, display)}
+              inCard
+            />
             {byCategory.length > 0 ? (
-              <CategoryBreakdown totals={byCategory} currency={display} />
+              <CategoryBreakdown totals={byCategory} currency={display} stacked />
             ) : (
               <Text variant="body" color="textSecondary">
                 {t('money.noExpensesBody')}
@@ -191,5 +230,8 @@ const styles = StyleSheet.create({
   content: { paddingTop: Spacing.lg },
   sections: { gap: Spacing.lg },
   chartCard: { gap: Spacing.lg },
-  stats: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
+  chartHead: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: Spacing.md },
+  chartTitle: { flexShrink: 1, gap: 2 },
+  stats: { gap: Spacing.sm },
+  statsRow: { flexDirection: 'row', gap: Spacing.sm },
 });

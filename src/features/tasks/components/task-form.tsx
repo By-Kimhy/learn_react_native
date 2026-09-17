@@ -101,8 +101,8 @@ export function TaskForm({ mode, initialValues, onSubmit, onCancel, onDelete }: 
           />
 
           <View style={styles.field}>
-            <Text variant="captionStrong" color="textSecondary">
-              {t('tasks.priority')}
+            <Text variant="overline" color="textTertiary">
+              {t('tasks.priority').toUpperCase()}
             </Text>
             <SegmentedControl
               accessibilityLabel={t('tasks.priority')}
@@ -151,6 +151,7 @@ export function TaskForm({ mode, initialValues, onSubmit, onCancel, onDelete }: 
           icon="checkmark"
           onPress={handleSubmit}
           fullWidth
+          shape="pill"
           style={styles.submit}
         />
       </Screen>

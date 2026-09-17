@@ -1,13 +1,15 @@
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
 
+import { IconTile } from '@/components/ui/icon-tile';
 import { PressableScale } from '@/components/ui/pressable-scale';
 import { Text } from '@/components/ui/text';
 import { MaxContentWidth, Radius, Spacing } from '@/constants/theme';
 import { useT } from '@/features/settings/store';
-import { useTheme } from '@/hooks/use-theme';
+import { useAccents, useTheme } from '@/hooks/use-theme';
 import type { TransactionType } from '@/types';
 
 import { categoriesFor } from '../categories';
+import { toneFor } from '../category-tones';
 
 export interface CategoryPickerProps {
   type: TransactionType;
@@ -17,17 +19,18 @@ export interface CategoryPickerProps {
   error?: string;
 }
 
-/**
- * A tap-target grid rather than a dropdown: choosing a category is the slowest
- * step of logging an expense, and the spec asks for "a few taps" end to end.
- */
 /** Screen padding the picker sits inside, mirroring <Screen>'s gutters. */
 const HORIZONTAL_INSET = Spacing.lg * 2;
 const GAP = Spacing.sm;
 const IDEAL_TILE = 86;
 
+/**
+ * A tap-target grid rather than a dropdown: choosing a category is the slowest
+ * step of logging an expense, and the spec asks for "a few taps" end to end.
+ */
 export function CategoryPicker({ type, value, onChange, label, error }: CategoryPickerProps) {
   const theme = useTheme();
+  const accents = useAccents();
   const t = useT();
   const { width } = useWindowDimensions();
   const categories = categoriesFor(type);
@@ -40,13 +43,15 @@ export function CategoryPicker({ type, value, onChange, label, error }: Category
 
   return (
     <View style={styles.container}>
-      <Text variant="captionStrong" color="textSecondary">
-        {label}
+      <Text variant="overline" color="textTertiary">
+        {label.toUpperCase()}
       </Text>
 
       <View style={styles.grid}>
         {categories.map((category) => {
           const selected = category.id === value;
+          const tone = toneFor(category.id);
+          const accent = accents[tone];
 
           return (
             <PressableScale
@@ -60,14 +65,14 @@ export function CategoryPicker({ type, value, onChange, label, error }: Category
                 styles.tile,
                 {
                   width: tileWidth,
-                  backgroundColor: selected ? theme.primarySoft : theme.surfaceAlt,
-                  borderColor: selected ? theme.primary : 'transparent',
+                  backgroundColor: selected ? accent.soft : theme.surface,
+                  borderColor: selected ? accent.tint : theme.border,
                 },
               ]}>
-              <Text variant="subheading">{category.emoji}</Text>
+              <IconTile emoji={category.emoji} tone={tone} size={40} shape="circle" />
               <Text
                 variant="caption"
-                color={selected ? 'primary' : 'textSecondary'}
+                tint={selected ? accent.tint : theme.textSecondary}
                 numberOfLines={2}
                 align="center">
                 {t(category.labelKey)}
@@ -90,12 +95,12 @@ const styles = StyleSheet.create({
   container: { gap: Spacing.sm },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: GAP },
   tile: {
-    minHeight: 84,
+    minHeight: 96,
     borderRadius: Radius.md,
     borderWidth: 1.5,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 2,
+    gap: Spacing.xs,
     paddingHorizontal: Spacing.xs,
     paddingVertical: Spacing.sm,
   },

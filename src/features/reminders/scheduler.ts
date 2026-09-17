@@ -1,4 +1,5 @@
-import type { ReminderOffset } from '@/types';
+import { formatClock } from '@/lib/date';
+import type { ReminderOffset, TimeFormat } from '@/types';
 
 import { cancel, ensurePermission, scheduleDaily, scheduleOnce } from './notifications';
 
@@ -84,19 +85,11 @@ export function parseTime(time: string): { hour: number; minute: number } | null
   return { hour, minute };
 }
 
-export function formatTime(time: string, language = 'en'): string {
+export function formatTime(time: string, language = 'en', format: TimeFormat = '12h'): string {
   const parsed = parseTime(time);
   if (!parsed) return time;
 
-  const date = new Date(2000, 0, 1, parsed.hour, parsed.minute);
-  try {
-    return new Intl.DateTimeFormat(language === 'km' ? 'km-KH' : 'en-US', {
-      hour: 'numeric',
-      minute: '2-digit',
-    }).format(date);
-  } catch {
-    return time;
-  }
+  return formatClock(new Date(2000, 0, 1, parsed.hour, parsed.minute), language, format);
 }
 
 export function toTimeString(date: Date): string {
