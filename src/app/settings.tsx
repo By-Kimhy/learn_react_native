@@ -17,6 +17,7 @@ import { SegmentedControl } from '@/components/ui/segmented-control';
 import { Text } from '@/components/ui/text';
 import { TextField } from '@/components/ui/text-field';
 import { Radius, Spacing } from '@/constants/theme';
+import { looksLikeCursorKey } from '@/features/ai/client';
 import { maskKey, useAPIKey } from '@/features/ai/key-store';
 import { Currencies, parseAmount } from '@/features/money/currency';
 import { ensurePermission } from '@/features/reminders/notifications';
@@ -108,7 +109,7 @@ export default function SettingsScreen() {
   const saveApiKey = async () => {
     const trimmed = keyDraft.trim();
     // A light sanity check only — the real verdict comes from the first request.
-    if (!trimmed.startsWith('sk-ant-')) {
+    if (!looksLikeCursorKey(trimmed)) {
       setKeyError(t('ai.keyInvalid'));
       return;
     }

@@ -11,7 +11,7 @@ import {
 import { Platform } from 'react-native';
 
 /**
- * The Claude API key lives in the device keychain (iOS) / keystore (Android),
+ * The Cursor API key lives in the device keychain (iOS) / keystore (Android),
  * never in AsyncStorage — it is the one secret this app holds, and it must not
  * end up in the plain-text export bundle alongside notes and transactions.
  *

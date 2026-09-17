@@ -100,7 +100,7 @@ src/
     reminders/          Notification wrapper, scheduler, cross-feature aggregation
     links/              Link store, grouping, URL normalisation
     qr/                 QR history store, image save helper
-    ai/                 Claude client, schema, secure key store, results sheet
+    ai/                 Cursor client, schema, secure key store, results sheet
     settings/           User preferences + translator
   store/                Persistence primitives shared by every feature store
   lib/                  storage, dates, ids, i18n
@@ -152,9 +152,9 @@ LifeHub does not use them.
 `features/ai/client.ts` is the only module that talks to the network. One
 `analyzeNote()` call covers all four AI actions in the spec — summary, title,
 tasks, events — because they all read the same text, so the user waits once
-instead of four times. The response is constrained with **structured outputs**
-(`messages.parse()` + a Zod schema), so what comes back is already the right
-shape rather than prose to be re-parsed.
+instead of four times. Cursor has no chat-completions API, so the phone launches
+a **no-repo Cloud Agent**, polls the run, and parses the assistant text with the
+same Zod schema.
 
 Everything degrades honestly: no key shows a setup prompt, no network says so and
 points out that the rest of the app still works, and an invalid key is reported as
@@ -162,9 +162,10 @@ such. Detected events are created with a reminder at their start time — the re
 to pull an event out of a note is not to forget it.
 
 **About the API key.** LifeHub is local-first with no backend, so AI calls go
-straight from the device to Anthropic using a key *you* supply in Settings. It is
-held in the iOS keychain / Android keystore via `expo-secure-store`, never in
-AsyncStorage, and it is deliberately excluded from the export bundle.
+straight from the device to Cursor using a key *you* supply in Settings (from
+[cursor.com/dashboard](https://cursor.com/dashboard)). It is held in the iOS
+keychain / Android keystore via `expo-secure-store`, never in AsyncStorage, and
+it is deliberately excluded from the export bundle.
 
 That is the right design for a personal app, but it is worth being explicit about
 the tradeoff: **a key shipped inside any client app can be extracted from it.**
@@ -172,7 +173,8 @@ This is fine when the key is your own and the app is on your own phone. If LifeH
 is ever distributed to other people, the AI calls should move behind the backend
 that arrives in Phase 5, so the key lives on a server and the app never sees it.
 
-Each analysis is one `claude-opus-5` request billed to the key's account.
+Each analysis is one Cursor cloud agent (`composer-2.5`) billed to the key's
+account. No-repo agents must be enabled for that Cursor account.
 
 ### Internationalisation
 

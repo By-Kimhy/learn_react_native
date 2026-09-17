@@ -1,19 +1,20 @@
-import Anthropic from '@anthropic-ai/sdk';
-import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod';
-
 import { todayISO } from '@/lib/date';
 
 import { NoteAnalysisSchema, TitleSchema, type NoteAnalysis } from './schema';
 
 /**
- * All Claude calls live here. The app is local-first, so this is the only
+ * All Cursor calls live here. The app is local-first, so this is the only
  * module that needs the network — everything else keeps working offline.
+ *
+ * Cursor does not expose a chat-completions endpoint. Note AI launches a
+ * no-repo Cloud Agent, waits for the run, then parses the assistant text as
+ * JSON. `@cursor/sdk` is Node-only (local executor), so the phone talks HTTP.
  */
 
-const MODEL = 'claude-opus-5';
-/** Opus 5 thinks by default, and thinking tokens come out of `max_tokens`. */
-const MAX_TOKENS = 16000;
-const TITLE_MAX_TOKENS = 4096;
+const API_BASE = 'https://api.cursor.com/v1';
+const MODEL = 'composer-2.5';
+const POLL_MS = 2000;
+const TIMEOUT_MS = 4 * 60 * 1000;
 
 export type AIErrorKind = 'offline' | 'no-key' | 'auth' | 'rate-limit' | 'empty' | 'unknown';
 
@@ -27,39 +28,83 @@ export class AIError extends Error {
   }
 }
 
-function createClient(apiKey: string): Anthropic {
+/** User / service-account keys from cursor.com/dashboard — not Anthropic `sk-ant-`. */
+export function looksLikeCursorKey(value: string): boolean {
+  const key = value.trim();
+  if (!key || /\s/.test(key) || key.startsWith('sk-ant-')) return false;
+  return /^(key_|crsr_|cursor_)/.test(key) || key.length >= 32;
+}
+
+function headers(apiKey: string): HeadersInit {
+  return {
+    Authorization: `Bearer ${apiKey.trim()}`,
+    'Content-Type': 'application/json',
+  };
+}
+
+async function cursorFetch(path: string, apiKey: string, init?: RequestInit): Promise<Response> {
   if (!apiKey.trim()) throw new AIError('no-key', 'No API key configured');
 
-  return new Anthropic({
-    apiKey: apiKey.trim(),
-    // React Native looks like a browser to the SDK's environment check. The key
-    // lives on the user's own device and is entered by them in Settings — see
-    // the security note in the README about why a backend proxy is better.
-    dangerouslyAllowBrowser: true,
-  });
+  try {
+    return await fetch(`${API_BASE}${path}`, {
+      ...init,
+      headers: { ...headers(apiKey), ...init?.headers },
+    });
+  } catch {
+    throw new AIError('offline', 'Could not reach the API');
+  }
 }
 
-/** Maps SDK and network failures onto something the UI can explain. */
-function toAIError(error: unknown): AIError {
-  if (error instanceof AIError) return error;
-
-  if (error instanceof Anthropic.AuthenticationError) {
+async function readError(response: Response): Promise<AIError> {
+  if (response.status === 401 || response.status === 403) {
     return new AIError('auth', 'The API key was rejected');
   }
-  if (error instanceof Anthropic.RateLimitError) {
+  if (response.status === 429) {
     return new AIError('rate-limit', 'Rate limited — try again shortly');
   }
-  if (error instanceof Anthropic.APIConnectionError) {
-    return new AIError('offline', 'Could not reach the API');
-  }
-  if (error instanceof Anthropic.APIError) {
-    return new AIError('unknown', error.message);
+
+  let detail = response.statusText;
+  try {
+    const body: unknown = await response.json();
+    if (body && typeof body === 'object' && 'message' in body && typeof body.message === 'string') {
+      detail = body.message;
+    }
+  } catch {
+    // Keep statusText.
   }
 
-  return new AIError('unknown', error instanceof Error ? error.message : 'Unknown error');
+  return new AIError('unknown', detail || 'Unknown error');
 }
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function extractJsonObject(text: string): unknown {
+  const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  const raw = (fenced?.[1] ?? text).trim();
+  const start = raw.indexOf('{');
+  const end = raw.lastIndexOf('}');
+  if (start < 0 || end <= start) throw new AIError('unknown', 'The response did not match the expected shape');
+
+  try {
+    return JSON.parse(raw.slice(start, end + 1));
+  } catch {
+    throw new AIError('unknown', 'The response did not match the expected shape');
+  }
+}
+
+const ANALYSIS_SHAPE = `{
+  "summary": string (1-3 short sentences, or "" if the note is too thin),
+  "title": string (2-6 words, no sentence punctuation),
+  "tasks": [{ "title": string, "dueDate": "YYYY-MM-DD" | null, "priority": "low" | "medium" | "high" }],
+  "events": [{ "title": string, "date": "YYYY-MM-DD", "time": "HH:mm" | null }]
+}`;
+
 const SYSTEM = `You help someone tidy up their personal notes in an app called LifeHub.
+
+This is a no-repo cloud agent. Do not use tools, do not write files, do not start a plan.
+Reply with a single JSON object and nothing else — no markdown fences, no commentary.
 
 Return only what the note actually supports:
 - summary: 1-3 short sentences. If the note is too short or has no substance, return an empty string.
@@ -69,7 +114,82 @@ Return only what the note actually supports:
 
 Resolve relative dates ("tomorrow", "Friday", "next week") against the current date given in the message. Dates are YYYY-MM-DD and times are 24-hour HH:mm. Use null for a date or time the note does not state.
 
-Return empty arrays rather than inventing tasks or events.`;
+Return empty arrays rather than inventing tasks or events.
+
+JSON shape:
+${ANALYSIS_SHAPE}`;
+
+interface CreatedAgent {
+  agent: { id: string };
+  run: { id: string; status: string };
+}
+
+interface RunSnapshot {
+  id: string;
+  status: string;
+  result?: string;
+}
+
+async function createAgent(apiKey: string, prompt: string, name: string): Promise<CreatedAgent> {
+  const response = await cursorFetch('/agents', apiKey, {
+    method: 'POST',
+    body: JSON.stringify({
+      prompt: { text: prompt },
+      name,
+      model: { id: MODEL },
+    }),
+  });
+
+  if (!response.ok) throw await readError(response);
+
+  const body = (await response.json()) as CreatedAgent;
+  if (!body?.agent?.id || !body?.run?.id) {
+    throw new AIError('unknown', 'The API did not return an agent run');
+  }
+  return body;
+}
+
+async function getRun(apiKey: string, agentId: string, runId: string): Promise<RunSnapshot> {
+  const response = await cursorFetch(`/agents/${encodeURIComponent(agentId)}/runs/${encodeURIComponent(runId)}`, apiKey);
+  if (!response.ok) throw await readError(response);
+  return (await response.json()) as RunSnapshot;
+}
+
+async function deleteAgent(apiKey: string, agentId: string): Promise<void> {
+  try {
+    await cursorFetch(`/agents/${encodeURIComponent(agentId)}`, apiKey, { method: 'DELETE' });
+  } catch {
+    // Best-effort cleanup — a leftover agent is not worth failing the analysis.
+  }
+}
+
+const TERMINAL = new Set(['FINISHED', 'ERROR', 'CANCELLED', 'EXPIRED']);
+
+async function waitForResult(apiKey: string, agentId: string, runId: string): Promise<string> {
+  const deadline = Date.now() + TIMEOUT_MS;
+
+  while (Date.now() < deadline) {
+    const run = await getRun(apiKey, agentId, runId);
+    if (TERMINAL.has(run.status)) {
+      if (run.status !== 'FINISHED' || !run.result?.trim()) {
+        throw new AIError('unknown', run.result?.trim() || `Run ${run.status.toLowerCase()}`);
+      }
+      return run.result;
+    }
+    await sleep(POLL_MS);
+  }
+
+  throw new AIError('unknown', 'Cursor took too long to finish');
+}
+
+async function promptCursor(apiKey: string, prompt: string, name: string): Promise<string> {
+  const created = await createAgent(apiKey, prompt, name);
+  try {
+    return await waitForResult(apiKey, created.agent.id, created.run.id);
+  } finally {
+    await deleteAgent(apiKey, created.agent.id);
+  }
+}
 
 export interface AnalyzeParams {
   apiKey: string;
@@ -81,62 +201,39 @@ export async function analyzeNote({ apiKey, title, body }: AnalyzeParams): Promi
   const text = [title.trim(), body.trim()].filter(Boolean).join('\n\n');
   if (!text) throw new AIError('empty', 'The note is empty');
 
-  const client = createClient(apiKey);
+  const prompt = `${SYSTEM}
 
-  try {
-    const response = await client.messages.parse({
-      model: MODEL,
-      max_tokens: MAX_TOKENS,
-      system: SYSTEM,
-      thinking: { type: 'adaptive' },
-      output_config: { format: zodOutputFormat(NoteAnalysisSchema) },
-      messages: [
-        {
-          role: 'user',
-          content: `Today is ${todayISO()}.\n\nNote:\n"""\n${text}\n"""`,
-        },
-      ],
-    });
+Today is ${todayISO()}.
 
-    // `parsed_output` is null when the model's JSON did not satisfy the schema.
-    const parsed = response.parsed_output;
-    if (!parsed) throw new AIError('unknown', 'The response did not match the expected shape');
+Note:
+"""
+${text}
+"""`;
 
-    return parsed;
-  } catch (error) {
-    throw toAIError(error);
-  }
+  const result = await promptCursor(apiKey, prompt, 'LifeHub note analysis');
+  const parsed = NoteAnalysisSchema.safeParse(extractJsonObject(result));
+  if (!parsed.success) throw new AIError('unknown', 'The response did not match the expected shape');
+  return parsed.data;
 }
 
-/**
- * The standalone "generate a title" action, kept cheap with low effort.
- *
- * Not thinking-free: on Opus 5 thinking is on unless you say otherwise, and it
- * spends `max_tokens`. The old 256-token ceiling was consumed before the title
- * was emitted, so every call came back unparsable. Low effort keeps the cost
- * down without the failure modes that come with disabling thinking outright.
- */
 export async function generateTitle({ apiKey, body }: { apiKey: string; body: string }): Promise<string> {
   const text = body.trim();
   if (!text) throw new AIError('empty', 'The note is empty');
 
-  const client = createClient(apiKey);
+  const prompt = `You help someone title a personal note in LifeHub.
+This is a no-repo cloud agent. Do not use tools, do not write files.
+Reply with a single JSON object {"title": string} and nothing else.
+The title must be 2-6 words with no trailing punctuation.
 
-  try {
-    const response = await client.messages.parse({
-      model: MODEL,
-      max_tokens: TITLE_MAX_TOKENS,
-      system: 'Give the note a 2-6 word title. No trailing punctuation.',
-      thinking: { type: 'adaptive' },
-      output_config: { effort: 'low', format: zodOutputFormat(TitleSchema) },
-      messages: [{ role: 'user', content: text }],
-    });
+Note:
+"""
+${text}
+"""`;
 
-    const parsed = response.parsed_output;
-    if (!parsed?.title.trim()) throw new AIError('unknown', 'No title was returned');
-
-    return parsed.title.trim();
-  } catch (error) {
-    throw toAIError(error);
+  const result = await promptCursor(apiKey, prompt, 'LifeHub note title');
+  const parsed = TitleSchema.safeParse(extractJsonObject(result));
+  if (!parsed.success || !parsed.data.title.trim()) {
+    throw new AIError('unknown', 'No title was returned');
   }
+  return parsed.data.title.trim();
 }
